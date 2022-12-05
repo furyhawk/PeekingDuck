@@ -7,6 +7,7 @@ set -e      # tell bash to exit on error
 # created 2022-03-06 initial version
 # updated 2022-04-12 for uninterrupted install
 # updated 2022-11-30 add typeguard, pytorch channel
+# update 2022-12-05 add macOS 13 Ventura
 #
 # Prerequisites: brew install miniforge
 #
@@ -92,6 +93,10 @@ conda install -y -c pytorch pytorch torchvision timm
 if [[ $ARCHI == i386 ]]; then
     echo "Installing for Intel macOS"
     pip install tensorflow==2.7.0
+elif [[ $MACOS == 13.* ]]; then
+    echo "Installing for macOS Ventura"
+    conda install -y -c apple tensorflow-deps
+    pip install tensorflow-macos tensorflow-metal
 elif [[ $MACOS == 12.* ]]; then
     echo "Installing for macOS Monterey"
     conda install -y -c apple tensorflow-deps
