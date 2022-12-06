@@ -1,0 +1,30 @@
+input: ["img"]
+output: ["bboxes", "bbox_labels", "bbox_scores"]
+callbacks: {}
+
+yaml: "coco.yaml"
+num_classes: 80
+
+
+input_size: 416
+detect: [0]
+iou_threshold: 0.45
+score_threshold: 0.25
+agnostic_nms: false
+fuse: false
+half: false
+source: "/Users/furyhawk/coco/images/val2017/000000000139.jpg"
+weights: "/Users/furyhawk/PeekingDuck/peekingduck_weights/yolov6/yolov6chkpt.pt"
+classes: None
+conf_thres: 0.25
+device: '0'
+hide_conf: false
+hide_labels: false
+img_size: 640
+iou_thres: 0.45
+max_det: 1000
+# name: 'exp' # name used
+project: 'runs/inference'
+save_dir: '.'
+save_img: true
+save_txt: false
