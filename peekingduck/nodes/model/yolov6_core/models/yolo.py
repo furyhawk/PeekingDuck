@@ -6,24 +6,32 @@ from peekingduck.nodes.model.yolov6_core.layers.common import *
 from peekingduck.nodes.model.yolov6_core.utils.torch_utils import initialize_weights
 from peekingduck.nodes.model.yolov6_core.models.efficientrep import EfficientRep
 from peekingduck.nodes.model.yolov6_core.models.reppan import RepPANNeck
-from peekingduck.nodes.model.yolov6_core.models.effidehead import Detect, build_effidehead_layer
+from peekingduck.nodes.model.yolov6_core.models.effidehead import (
+    Detect,
+    build_effidehead_layer,
+)
 
 
 class Model(nn.Module):
-    '''YOLOv6 model with backbone, neck and head.
+    """YOLOv6 model with backbone, neck and head.
     The default parts are EfficientRep Backbone, Rep-PAN and
     Efficient Decoupled Head.
-    '''
-    def __init__(self, config, channels=3, num_classes=None, anchors=None):  # model, input channels, number of classes
+    """
+
+    def __init__(
+        self, config, channels=3, num_classes=None, anchors=None
+    ):  # model, input channels, number of classes
         super().__init__()
         # Build network
-        num_layers = config["head"]["num_layers"]
-        self.mode = "repopt"
-        self.backbone, self.neck, self.detect = build_network(config, channels, num_classes, anchors, num_layers)
+        num_layers = config.model.head.num_layers
+        self.mode = config.training_mode
+        self.backbone, self.neck, self.detect = build_network(
+            config, channels, num_classes, anchors, num_layers
+        )
 
         # Init Detect head
-        begin_indices = config["head"]["begin_indices"]
-        out_indices_head = config["head"]["out_indices"]
+        begin_indices = config.model.head.begin_indices
+        out_indices_head = config.model.head.out_indices
         self.stride = self.detect.stride
         self.detect.i = begin_indices
         self.detect.f = out_indices_head
@@ -51,30 +59,32 @@ def make_divisible(x, divisor):
 
 
 def build_network(config, channels, num_classes, anchors, num_layers):
-    depth_mul = config["depth_multiple"]
-    width_mul = config["width_multiple"]
-    num_repeat_backbone = config["backbone"]["num_repeats"]
-    channels_list_backbone = config["backbone"]["out_channels"]
-    num_repeat_neck = config["neck"]["num_repeats"]
-    channels_list_neck = config["neck"]["out_channels"]
-    num_anchors = config["head"]["anchors"]
-    num_repeat = [(max(round(i * depth_mul), 1) if i > 1 else i) for i in (num_repeat_backbone + num_repeat_neck)]
-    channels_list = [make_divisible(i * width_mul, 8) for i in (channels_list_backbone + channels_list_neck)]
+    depth_mul = config.model.depth_multiple
+    width_mul = config.model.width_multiple
+    num_repeat_backbone = config.model.backbone.num_repeats
+    channels_list_backbone = config.model.backbone.out_channels
+    num_repeat_neck = config.model.neck.num_repeats
+    channels_list_neck = config.model.neck.out_channels
+    num_anchors = config.model.head.anchors
+    num_repeat = [
+        (max(round(i * depth_mul), 1) if i > 1 else i)
+        for i in (num_repeat_backbone + num_repeat_neck)
+    ]
+    channels_list = [
+        make_divisible(i * width_mul, 8)
+        for i in (channels_list_backbone + channels_list_neck)
+    ]
 
-    block = get_block("repopt")
+    block = get_block(config.training_mode)
 
     backbone = EfficientRep(
         in_channels=channels,
         channels_list=channels_list,
         num_repeats=num_repeat,
-        block=block
+        block=block,
     )
 
-    neck = RepPANNeck(
-        channels_list=channels_list,
-        num_repeats=num_repeat,
-        block=block
-    )
+    neck = RepPANNeck(channels_list=channels_list, num_repeats=num_repeat, block=block)
 
     head_layers = build_effidehead_layer(channels_list, num_anchors, num_classes)
 
@@ -84,6 +94,7 @@ def build_network(config, channels, num_classes, anchors, num_layers):
 
 
 def build_model(cfg, num_classes, device):
-    print(f'cfg: {cfg}')
-    model = Model(cfg, channels=3, num_classes=num_classes, anchors=cfg["head"]["anchors"]).to(device)
+    model = Model(
+        cfg, channels=3, num_classes=num_classes, anchors=cfg.model.head.anchors
+    ).to(device)
     return model

@@ -152,5 +152,6 @@ dist/
 peekingduck.egg-info/
 docs/source/peekingduck.*
 docs/source/nodes
+runs/
 # Other likely files that should not be committed
 .DS_Store

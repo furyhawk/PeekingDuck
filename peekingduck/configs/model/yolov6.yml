@@ -4,27 +4,107 @@ callbacks: {}
 
 yaml: "coco.yaml"
 num_classes: 80
-
-
-input_size: 416
-detect: [0]
-iou_threshold: 0.45
-score_threshold: 0.25
-agnostic_nms: false
+classes: null
+agnostic_nms: true
 fuse: false
 half: false
 source: "/Users/furyhawk/coco/images/val2017/000000000139.jpg"
 weights: "/Users/furyhawk/PeekingDuck/peekingduck_weights/yolov6/yolov6chkpt.pt"
-classes: None
+
 conf_thres: 0.25
-device: '0'
+iou_thres: 0.45
+device: "cpu"
 hide_conf: false
 hide_labels: false
 img_size: 640
-iou_thres: 0.45
 max_det: 1000
 # name: 'exp' # name used
-project: 'runs/inference'
-save_dir: '.'
+project: "runs/inference"
+save_dir: "."
 save_img: true
-save_txt: false
+save_txt: true
+
+# class names
+class_names:
+  [
+    "person",
+    "bicycle",
+    "car",
+    "motorcycle",
+    "airplane",
+    "bus",
+    "train",
+    "truck",
+    "boat",
+    "traffic light",
+    "fire hydrant",
+    "stop sign",
+    "parking meter",
+    "bench",
+    "bird",
+    "cat",
+    "dog",
+    "horse",
+    "sheep",
+    "cow",
+    "elephant",
+    "bear",
+    "zebra",
+    "giraffe",
+    "backpack",
+    "umbrella",
+    "handbag",
+    "tie",
+    "suitcase",
+    "frisbee",
+    "skis",
+    "snowboard",
+    "sports ball",
+    "kite",
+    "baseball bat",
+    "baseball glove",
+    "skateboard",
+    "surfboard",
+    "tennis racket",
+    "bottle",
+    "wine glass",
+    "cup",
+    "fork",
+    "knife",
+    "spoon",
+    "bowl",
+    "banana",
+    "apple",
+    "sandwich",
+    "orange",
+    "broccoli",
+    "carrot",
+    "hot dog",
+    "pizza",
+    "donut",
+    "cake",
+    "chair",
+    "couch",
+    "potted plant",
+    "bed",
+    "dining table",
+    "toilet",
+    "tv",
+    "laptop",
+    "mouse",
+    "remote",
+    "keyboard",
+    "cell phone",
+    "microwave",
+    "oven",
+    "toaster",
+    "sink",
+    "refrigerator",
+    "book",
+    "clock",
+    "vase",
+    "scissors",
+    "teddy bear",
+    "hair drier",
+    "toothbrush",
+  ]

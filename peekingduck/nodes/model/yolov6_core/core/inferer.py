@@ -9,15 +9,16 @@ import cv2
 import torch
 from PIL import ImageFont
 
-from peekingduck.nodes.model.yolov6_core.utils.events import LOGGER, load_yaml
+from peekingduck.nodes.model.yolov6_core.utils.events import LOGGER
 from peekingduck.nodes.model.yolov6_core.layers.common import DetectBackend
 from peekingduck.nodes.model.yolov6_core.data.data_augment import letterbox
 from peekingduck.nodes.model.yolov6_core.utils.nms import non_max_suppression
 from peekingduck.nodes.model.yolov6_core.utils.torch_utils import get_model_info
+from peekingduck.utils.bbox.transforms import xyxy2xyxyn
 
 
 class Inferer:
-    def __init__(self, source, weights, device, yaml, img_size, half):
+    def __init__(self, source, weights, device, yaml, img_size, half, class_names):
         import glob
         from peekingduck.nodes.model.yolov6_core.data.datasets import IMG_FORMATS
 
@@ -29,8 +30,9 @@ class Inferer:
         cuda = self.device != "cpu" and torch.cuda.is_available()
         self.device = torch.device("cuda:0" if cuda else "cpu")
         self.model = DetectBackend(weights, device=self.device)
-        self.stride = self.model.stride
-        self.class_names = load_yaml(yaml)["names"]
+        self.stride = self.model.stride  # 32
+        self.class_names = class_names
+
         self.img_size = self.check_img_size(
             self.img_size, s=self.stride
         )  # check image size
@@ -77,6 +79,7 @@ class Inferer:
 
     def infer(
         self,
+        image,
         conf_thres,
         iou_thres,
         classes,
@@ -98,8 +101,8 @@ class Inferer:
             if len(img.shape) == 3:
                 img = img[None]
                 # expand for batch dim
-            pred_results = self.model(img)
 
+            pred_results = self.model(img)
             det = non_max_suppression(
                 pred_results,
                 conf_thres,
@@ -122,12 +125,15 @@ class Inferer:
                 img_ori.data.contiguous
             ), "Image needs to be contiguous. Please apply to input images with np.ascontiguousarray(im)."
             self.font_check()
-
+            LOGGER.info(
+                f"img: {img.shape}\nimg_src:{img_src.shape}\nimg: {image.shape}\npred_results: {pred_results.shape}"
+            )
+            LOGGER.info(det)
             if len(det):
                 det[:, :4] = self.rescale(
                     img.shape[2:], det[:, :4], img_src.shape
                 ).round()
-                print(det[:, :4], det[:, 4])
+                LOGGER.info(det[:, :4], det[:, 4])
 
                 for *xyxy, conf, cls in reversed(det):
                     if save_txt:  # Write to file
@@ -205,7 +211,7 @@ class Inferer:
             txt_path = osp.join(
                 save_dir, "labels", osp.splitext(osp.basename(img_path))[0]
             )
-            
+
             gn = torch.tensor(img_src.shape)[[1, 0, 1, 0]]  # normalization gain whwh
             img_ori = img_src
 
@@ -214,10 +220,14 @@ class Inferer:
                 img_ori.data.contiguous
             ), "Image needs to be contiguous. Please apply to input images with np.ascontiguousarray(im)."
             self.font_check()
-            print(
+            LOGGER.info(
                 f"img: {img.shape}\nimg_src:{img_src.shape}\nimg: {image.shape}\npred_results: {pred_results.shape}"
             )
-            print(det[:, :4], det[:, 4])
+
+            bboxes = []
+            labels = []
+            scores = []
+
             if len(det):
                 det[:, :4] = self.rescale(
                     img.shape[2:], det[:, :4], img_src.shape
@@ -254,12 +264,24 @@ class Inferer:
                             label,
                             color=self.generate_colors(class_num, True),
                         )
+                        bboxes.append(
+                            xyxy2xyxyn(
+                                torch.tensor(xyxy),
+                                height=img[0, 0].shape[0],
+                                width=img[0, 0].shape[1],
+                            )
+                        )
+                        labels.append(f"{self.class_names[class_num]} {conf:.2f}")
+                        scores.append(float(conf))
 
                 img_src = np.asarray(img_ori)
 
                 # Save results (image with detections)
                 if save_img:
                     cv2.imwrite(save_path, img_src)
+
+                return bboxes, labels, scores
+
     @staticmethod
     def precess_image(path, img_size, stride, half):
         """Process image before image inference."""
@@ -309,7 +331,7 @@ class Inferer:
             raise Exception(f"Unsupported type of img_size: {type(img_size)}")
 
         if new_size != img_size:
-            print(
+            LOGGER.warn(
                 f"WARNING: --img-size {img_size} must be multiple of max stride {s}, updating to {new_size}"
             )
         return new_size if isinstance(img_size, list) else [new_size] * 2

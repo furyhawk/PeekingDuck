@@ -539,12 +539,12 @@ class DiverseBranchBlock(nn.Module):
 
 
 class DetectBackend(nn.Module):
-    def __init__(self, weights='yolov6s.pt', device=None, dnn=True):
+    def __init__(self, weights='yolov6n.pt', device=None, dnn=True):
 
         super().__init__()
         assert isinstance(weights, str) and Path(weights).suffix == '.pt', f'{Path(weights).suffix} format is not supported.'
         from peekingduck.nodes.model.yolov6_core.utils.checkpoint import load_checkpoint
-        model = load_checkpoint(weights, map_location=device)
+        model = load_checkpoint(weights, map_location=device, fuse=True)
         stride = int(model.stride.max())
         self.__dict__.update(locals())  # assign all variables to self
 

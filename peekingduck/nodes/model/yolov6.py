@@ -29,7 +29,6 @@ class Node(AbstractNode):  # pylint: disable=too-few-public-methods
 
     def __init__(self, config: Dict[str, Any] = None, **kwargs: Any) -> None:
         super().__init__(config, node_path=__name__, **kwargs)
-        print(f"config: {config}")
         self.model = yolov6_model.YOLOV6Model(self.config)
 
     def run(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
@@ -46,17 +45,12 @@ class Node(AbstractNode):  # pylint: disable=too-few-public-methods
             (Dict): Outputs dictionary with the keys `bboxes`, `bbox_labels`,
                 and `bbox_scores`.
         """
-        self.model.predict(inputs["img"])
-        # bboxes, labels, scores = self.model.predict(inputs["img"])
+        bboxes, labels, scores = self.model.predict(inputs["img"])
         # bboxes = np.clip(bboxes, 0, 1)
 
-        # outputs = {"bboxes": bboxes, "bbox_labels": labels, "bbox_scores": scores}
+        outputs = {"bboxes": bboxes, "bbox_labels": labels, "bbox_scores": scores}
 
-        return {
-            "bboxes": np.array([[0.18590578, 0.00212276, 0.827186, 0.9916357]]),
-            "bbox_labels": ["a"],
-            "bbox_scores": [0.9],
-        }
+        return outputs
 
     def _get_config_types(self) -> Dict[str, Any]:
         """Returns dictionary mapping the node's config keys to respective types."""

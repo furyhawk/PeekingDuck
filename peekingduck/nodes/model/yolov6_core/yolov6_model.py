@@ -21,7 +21,6 @@ import os
 import sys
 import os.path as osp
 import numpy as np
-import torch
 
 from peekingduck.nodes.base import ThresholdCheckerMixin, WeightsDownloaderMixin
 from peekingduck.nodes.model.yolov6_core.core.inferer import Inferer
@@ -52,22 +51,23 @@ class YOLOV6Model(ThresholdCheckerMixin, WeightsDownloaderMixin):
         self.config = config
         self.logger = logging.getLogger(__name__)
 
-        self.check_bounds(["iou_threshold", "score_threshold"], "[0, 1]")
+        self.check_bounds(["iou_thres", "conf_thres"], "[0, 1]")
 
         # create save dir
-        save_dir = osp.join(self.config["project"], "yolov6")
+        self.save_dir = osp.join(self.config["project"], "yolov6")
         if (self.config["save_img"] or self.config["save_txt"]) and not osp.exists(
-            save_dir
+            self.save_dir
         ):
-            os.makedirs(save_dir)
+            os.makedirs(self.save_dir)
         else:
             self.logger.warning("Save directory already existed")
         if self.config["save_txt"]:
-            save_txt_path = osp.join(save_dir, "labels")
+            save_txt_path = osp.join(self.save_dir, "labels")
             if not osp.exists(save_txt_path):
                 os.makedirs(save_txt_path)
 
-        self.detect_ids = self.config["detect"]  # change "detect_ids" to "detect"
+        self.detect_ids = self.config["class_names"]  # change "detect_ids" to "detect"
+    
         # Inference
         self.inferer = Inferer(
             self.config["source"],
@@ -76,6 +76,7 @@ class YOLOV6Model(ThresholdCheckerMixin, WeightsDownloaderMixin):
             self.config["yaml"],
             self.config["img_size"],
             self.config["half"],
+            self.config["class_names"],
         )
 
 
@@ -115,7 +116,7 @@ class YOLOV6Model(ThresholdCheckerMixin, WeightsDownloaderMixin):
             self.config["classes"],
             self.config["agnostic_nms"],
             self.config["max_det"],
-            self.config["save_dir"],
+            self.save_dir,
             self.config["save_txt"],
             self.config["save_img"],
             self.config["hide_labels"],

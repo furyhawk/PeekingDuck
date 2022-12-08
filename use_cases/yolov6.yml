@@ -2,5 +2,6 @@ nodes:
 - input.visual:
     source: "/Users/furyhawk/coco/images/val2017/000000000139.jpg"
 - model.yolov6
-- draw.bbox
+- draw.bbox:
+    show_labels: True
 - output.screen
