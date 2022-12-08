@@ -13,12 +13,11 @@ from peekingduck.nodes.model.yolov6_core.utils.events import LOGGER
 from peekingduck.nodes.model.yolov6_core.layers.common import DetectBackend
 from peekingduck.nodes.model.yolov6_core.data.data_augment import letterbox
 from peekingduck.nodes.model.yolov6_core.utils.nms import non_max_suppression
-from peekingduck.nodes.model.yolov6_core.utils.torch_utils import get_model_info
 from peekingduck.utils.bbox.transforms import xyxy2xyxyn
 
 
 class Inferer:
-    def __init__(self, source, weights, device, yaml, img_size, half, class_names):
+    def __init__(self, source, weights, device, img_size, half, class_names):
         import glob
         from peekingduck.nodes.model.yolov6_core.data.datasets import IMG_FORMATS
 
@@ -180,118 +179,60 @@ class Inferer:
         classes,
         agnostic_nms,
         max_det,
-        save_dir,
-        save_txt,
-        save_img,
-        hide_labels,
-        hide_conf,
     ):
         """Model Inference and results visualization"""
 
-        for img_path in tqdm(self.img_paths):
-            img, img_src = self.precess_image(
-                img_path, self.img_size, self.stride, self.half
-            )
-            img = img.to(self.device)
-            if len(img.shape) == 3:
-                img = img[None]
-                # expand for batch dim
+        # for img_path in tqdm(self.img_paths):
+        img, img_src = self.precess_image(image, image.shape[1], self.stride, self.half)
+        img = img.to(self.device)
+        if len(img.shape) == 3:
+            img = img[None]
+            # expand for batch dim
 
-            pred_results = self.model(img)
-            det = non_max_suppression(
-                pred_results,
-                conf_thres,
-                iou_thres,
-                classes,
-                agnostic_nms,
-                max_det=max_det,
-            )[0]
+        pred_results = self.model(img)
+        det = non_max_suppression(
+            pred_results,
+            conf_thres,
+            iou_thres,
+            classes,
+            agnostic_nms,
+            max_det=max_det,
+        )[0]
 
-            save_path = osp.join(save_dir, osp.basename(img_path))  # im.jpg
-            txt_path = osp.join(
-                save_dir, "labels", osp.splitext(osp.basename(img_path))[0]
-            )
+        img_ori = img_src
 
-            gn = torch.tensor(img_src.shape)[[1, 0, 1, 0]]  # normalization gain whwh
-            img_ori = img_src
+        # check image and font
+        assert (
+            img_ori.data.contiguous
+        ), "Image needs to be contiguous. Please apply to input images with np.ascontiguousarray(im)."
 
-            # check image and font
-            assert (
-                img_ori.data.contiguous
-            ), "Image needs to be contiguous. Please apply to input images with np.ascontiguousarray(im)."
-            self.font_check()
-            LOGGER.info(
-                f"img: {img.shape}\nimg_src:{img_src.shape}\nimg: {image.shape}\npred_results: {pred_results.shape}"
-            )
+        bboxes = []
+        labels = []
+        scores = []
 
-            bboxes = []
-            labels = []
-            scores = []
+        if len(det):
+            det[:, :4] = self.rescale(img.shape[2:], det[:, :4], img_src.shape).round()
+            # print(det[:, :4], det[:, 4])
 
-            if len(det):
-                det[:, :4] = self.rescale(
-                    img.shape[2:], det[:, :4], img_src.shape
-                ).round()
-                print(det[:, :4], det[:, 4])
+            for *xyxy, conf, cls in reversed(det):
+                class_num = int(cls)  # integer class
+                bboxes.append(
+                    xyxy2xyxyn(
+                        torch.tensor(xyxy),
+                        height=img[0, 0].shape[0],
+                        width=img[0, 0].shape[1],
+                    )
+                )
+                labels.append(f"{self.class_names[class_num]} {conf:.2f}")
+                scores.append(float(conf))
 
-                for *xyxy, conf, cls in reversed(det):
-                    if save_txt:  # Write to file
-                        xywh = (
-                            (self.box_convert(torch.tensor(xyxy).view(1, 4)) / gn)
-                            .view(-1)
-                            .tolist()
-                        )  # normalized xywh
-                        line = (cls, *xywh, conf)
-                        with open(txt_path + ".txt", "a") as f:
-                            f.write(("%g " * len(line)).rstrip() % line + "\n")
+            img_src = np.asarray(img_ori)
 
-                    if save_img:
-                        class_num = int(cls)  # integer class
-                        label = (
-                            None
-                            if hide_labels
-                            else (
-                                self.class_names[class_num]
-                                if hide_conf
-                                else f"{self.class_names[class_num]} {conf:.2f}"
-                            )
-                        )
-
-                        self.plot_box_and_label(
-                            img_ori,
-                            max(round(sum(img_ori.shape) / 2 * 0.003), 2),
-                            xyxy,
-                            label,
-                            color=self.generate_colors(class_num, True),
-                        )
-                        bboxes.append(
-                            xyxy2xyxyn(
-                                torch.tensor(xyxy),
-                                height=img[0, 0].shape[0],
-                                width=img[0, 0].shape[1],
-                            )
-                        )
-                        labels.append(f"{self.class_names[class_num]} {conf:.2f}")
-                        scores.append(float(conf))
-
-                img_src = np.asarray(img_ori)
-
-                # Save results (image with detections)
-                if save_img:
-                    cv2.imwrite(save_path, img_src)
-
-                return bboxes, labels, scores
+            return bboxes, labels, scores
 
     @staticmethod
-    def precess_image(path, img_size, stride, half):
+    def precess_image(img_src, img_size, stride, half):
         """Process image before image inference."""
-        try:
-            # img_src = cv2.imread(path)
-            cap = cv2.VideoCapture(path)
-            _, img_src = cap.read()
-            assert img_src is not None, f"Invalid image: {path}"
-        except Exception as e:
-            LOGGER.warning(e)
         image = letterbox(img_src, img_size, stride=stride)[0]
 
         # Convert

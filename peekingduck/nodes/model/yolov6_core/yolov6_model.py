@@ -73,7 +73,6 @@ class YOLOV6Model(ThresholdCheckerMixin, WeightsDownloaderMixin):
             self.config["source"],
             self.config["weights"],
             self.config["device"],
-            self.config["yaml"],
             self.config["img_size"],
             self.config["half"],
             self.config["class_names"],
@@ -116,9 +115,4 @@ class YOLOV6Model(ThresholdCheckerMixin, WeightsDownloaderMixin):
             self.config["classes"],
             self.config["agnostic_nms"],
             self.config["max_det"],
-            self.save_dir,
-            self.config["save_txt"],
-            self.config["save_img"],
-            self.config["hide_labels"],
-            self.config["hide_conf"],
         )
