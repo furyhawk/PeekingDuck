@@ -47,24 +47,13 @@ def load_state_dict(weights, model, map_location=None):
 
 def load_checkpoint(weights, map_location=None, inplace=True, fuse=True):
     """Load model from checkpoint file."""
-    from peekingduck.nodes.model.yolov6_core.utils.envs import select_device
 
     LOGGER.info("Loading checkpoint from {}".format(weights))
-    # sys.path.append(r'./peekingduck/nodes/model/yolov6_core')
-    # ckpt = torch.load(weights, map_location=map_location)  # load
-    # model = ckpt['ema' if ckpt.get('ema') else 'model'].float()
     # get data loader
-    # data_dict = load_yaml("./yolov6n.py")
     config = Config.fromfile("peekingduck/nodes/model/yolov6_core/configs/yolov6n.py")
-    setattr(config, 'training_mode', 'repvgg')
     LOGGER.info(f"data_dict: {config}")
 
     model = build_model(config, 80, map_location)
-    # ckpt = torch.load(str(weights), map_location="cpu")
-    # model.load_state_dict(ckpt, strict=False)
-
-    # model = onnx.load(str(weights))
-    # onnx.checker.check_model(model)
     model = load_state_dict(weights, model, map_location=map_location)
 
     if fuse:

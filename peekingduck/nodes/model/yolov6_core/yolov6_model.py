@@ -67,7 +67,7 @@ class YOLOV6Model(ThresholdCheckerMixin, WeightsDownloaderMixin):
                 os.makedirs(save_txt_path)
 
         self.detect_ids = self.config["class_names"]  # change "detect_ids" to "detect"
-    
+
         # Inference
         self.inferer = Inferer(
             self.config["source"],
@@ -77,7 +77,6 @@ class YOLOV6Model(ThresholdCheckerMixin, WeightsDownloaderMixin):
             self.config["half"],
             self.config["class_names"],
         )
-
 
     @property
     def detect_ids(self) -> List[int]:

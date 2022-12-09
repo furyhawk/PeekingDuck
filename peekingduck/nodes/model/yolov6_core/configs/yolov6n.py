@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # YOLOv6n model
+training_mode = 'repvgg'
 model = dict(
     type='YOLOv6n',
     pretrained=None,

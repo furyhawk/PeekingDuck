@@ -26,7 +26,6 @@ from addict import Dict
 
 
 class ConfigDict(Dict):
-
     def __missing__(self, name):
         raise KeyError(name)
 
@@ -34,8 +33,11 @@ class ConfigDict(Dict):
         try:
             value = super(ConfigDict, self).__getattr__(name)
         except KeyError:
-            ex = AttributeError("'{}' object has no attribute '{}'".format(
-                self.__class__.__name__, name))
+            ex = AttributeError(
+                "'{}' object has no attribute '{}'".format(
+                    self.__class__.__name__, name
+                )
+            )
         except Exception as e:
             ex = e
         else:
@@ -43,30 +45,28 @@ class ConfigDict(Dict):
         raise ex
 
 
-class Config(object):
-
+class Config():
     @staticmethod
     def _file2dict(filename):
         filename = str(filename)
-        if filename.endswith('.py'):
+        if filename.endswith(".py"):
             with tempfile.TemporaryDirectory() as temp_config_dir:
-                shutil.copyfile(filename,
-                                osp.join(temp_config_dir, '_tempconfig.py'))
+                shutil.copyfile(filename, osp.join(temp_config_dir, "_tempconfig.py"))
                 sys.path.insert(0, temp_config_dir)
-                mod = import_module('_tempconfig')
+                mod = import_module("_tempconfig")
                 sys.path.pop(0)
                 cfg_dict = {
                     name: value
                     for name, value in mod.__dict__.items()
-                    if not name.startswith('__')
+                    if not name.startswith("__")
                 }
                 # delete imported module
-                del sys.modules['_tempconfig']
+                del sys.modules["_tempconfig"]
         else:
-            raise IOError('Only .py type are supported now!')
-        cfg_text = filename + '\n'
-        with open(filename, 'r') as f:
-            cfg_text += f.read()
+            raise IOError("Only .py type are supported now!")
+        cfg_text = filename + "\n"
+        with open(filename, "r") as file:
+            cfg_text += file.read()
 
         return cfg_dict, cfg_text
 
@@ -79,19 +79,20 @@ class Config(object):
         if cfg_dict is None:
             cfg_dict = dict()
         elif not isinstance(cfg_dict, dict):
-            raise TypeError('cfg_dict must be a dict, but got {}'.format(
-                type(cfg_dict)))
+            raise TypeError(
+                "cfg_dict must be a dict, but got {}".format(type(cfg_dict))
+            )
 
-        super(Config, self).__setattr__('_cfg_dict', ConfigDict(cfg_dict))
-        super(Config, self).__setattr__('_filename', filename)
+        super(Config, self).__setattr__("_cfg_dict", ConfigDict(cfg_dict))
+        super(Config, self).__setattr__("_filename", filename)
         if cfg_text:
             text = cfg_text
         elif filename:
-            with open(filename, 'r') as f:
-                text = f.read()
+            with open(filename, "r") as file:
+                text = file.read()
         else:
-            text = ''
-        super(Config, self).__setattr__('_text', text)
+            text = ""
+        super(Config, self).__setattr__("_text", text)
 
     @property
     def filename(self):
@@ -102,8 +103,7 @@ class Config(object):
         return self._text
 
     def __repr__(self):
-        return 'Config (path: {}): {}'.format(self.filename,
-                                              self._cfg_dict.__repr__())
+        return "Config (path: {}): {}".format(self.filename, self._cfg_dict.__repr__())
 
     def __getattr__(self, name):
         return getattr(self._cfg_dict, name)

@@ -16,8 +16,6 @@
 
 from typing import Any, Dict, List, Optional, Union
 
-import numpy as np
-
 from peekingduck.nodes.abstract_node import AbstractNode
 
 # from peekingduck.nodes.model.yoloxv1 import yolox_model

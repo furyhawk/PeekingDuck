@@ -141,7 +141,7 @@ class Inferer:
             LOGGER.info(
                 f"img: {img.shape}\nimg_src:{img_src.shape}\nimg: {image.shape}\npred_results: {pred_results.shape}"
             )
-            LOGGER.info(det)
+
             if len(det):
                 det[:, :4] = self.rescale(
                     img.shape[2:], det[:, :4], img_src.shape
