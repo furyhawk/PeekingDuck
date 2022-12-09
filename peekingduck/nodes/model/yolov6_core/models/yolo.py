@@ -16,7 +16,7 @@
 
 import math
 import torch.nn as nn
-from peekingduck.nodes.model.yolov6_core.layers.common import *
+from peekingduck.nodes.model.yolov6_core.layers.common import get_block
 from peekingduck.nodes.model.yolov6_core.utils.torch_utils import initialize_weights
 from peekingduck.nodes.model.yolov6_core.models.efficientrep import EfficientRep
 from peekingduck.nodes.model.yolov6_core.models.reppan import RepPANNeck

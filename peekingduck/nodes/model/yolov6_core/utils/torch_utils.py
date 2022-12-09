@@ -20,8 +20,6 @@ from copy import deepcopy
 import torch
 import torch.distributed as dist
 import torch.nn as nn
-import torch.nn.functional as F
-from peekingduck.nodes.model.yolov6_core.utils.events import LOGGER
 
 try:
     import thop  # for FLOPs computation
