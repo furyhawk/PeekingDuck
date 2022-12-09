@@ -68,6 +68,7 @@ class Model(nn.Module):
 
 
 def make_divisible(x, divisor):
+    """"""
     # Upward revision the value x to make it evenly divisible by the divisor.
     return math.ceil(x / divisor) * divisor
 
@@ -108,6 +109,7 @@ def build_network(config, channels, num_classes, anchors, num_layers):
 
 
 def build_model(cfg, num_classes, device):
+    """"""
     model = Model(
         cfg, channels=3, num_classes=num_classes, anchors=cfg.model.head.anchors
     ).to(device)

@@ -15,9 +15,9 @@
 # limitations under the License.
 
 import os
+import os.path as osp
 import shutil
 import torch
-import os.path as osp
 
 from peekingduck.nodes.model.yolov6_core.models.yolo import build_model
 from peekingduck.nodes.model.yolov6_core.utils.torch_utils import fuse_model

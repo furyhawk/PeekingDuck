@@ -12,18 +12,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""🔲 High performance anchor-free YOLO object detection model."""
+"""🔲 YOLOv6: a single-stage object detection framework dedicated to industrial applications."""
 
 from typing import Any, Dict, List, Optional, Union
 
 from peekingduck.nodes.abstract_node import AbstractNode
 
-# from peekingduck.nodes.model.yoloxv1 import yolox_model
 from peekingduck.nodes.model.yolov6_core import yolov6_model
 
 
 class Node(AbstractNode):  # pylint: disable=too-few-public-methods
-    """Initializes and uses YOLOX to infer from an image frame."""
+    """
+    Initializes and uses yolov6 to infer from an image frame.
+        YOLOv6 has a series of models for various industrial scenarios,
+        including N/T/S/M/L, which the architectures vary considering
+        the model size for better accuracy-speed trade-off.
+        And some Bag-of-freebies methods are introduced to further
+        improve the performance, such as self-distillation and more
+        training epochs. For industrial deployment,
+        we adopt QAT with channel-wise distillation
+        and graph optimization to pursue extreme performance.
+
+        YOLOv6-N hits 35.9% AP on COCO dataset with 1234 FPS on T4.
+        YOLOv6-S strikes 43.5% AP with 495 FPS, and the quantized
+        YOLOv6-S model achieves 43.3% AP at a accelerated speed of 869 FPS on T4.
+        YOLOv6-T/M/L also have excellent performance,
+        which show higher accuracy than other detectors with the similar inference speed."""
 
     def __init__(self, config: Dict[str, Any] = None, **kwargs: Any) -> None:
         super().__init__(config, node_path=__name__, **kwargs)
