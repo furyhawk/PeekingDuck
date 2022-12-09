@@ -13,21 +13,21 @@
 # limitations under the License.
 
 from torch import nn
-from peekingduck.nodes.model.yolov6_core.layers.common import RepVGGBlock, RepBlock, SimSPPF
+from peekingduck.nodes.model.yolov6_core.layers.common import (
+    RepVGGBlock,
+    RepBlock,
+    SimSPPF,
+)
 
 
 class EfficientRep(nn.Module):
-    '''EfficientRep Backbone
+    """EfficientRep Backbone
     EfficientRep is handcrafted by hardware-aware neural network design.
     With rep-style struct, EfficientRep is friendly to high-computation hardware(e.g. GPU).
-    '''
+    """
 
     def __init__(
-        self,
-        in_channels=3,
-        channels_list=None,
-        num_repeats=None,
-        block=RepVGGBlock
+        self, in_channels=3, channels_list=None, num_repeats=None, block=RepVGGBlock
     ):
         super().__init__()
 
@@ -38,7 +38,7 @@ class EfficientRep(nn.Module):
             in_channels=in_channels,
             out_channels=channels_list[0],
             kernel_size=3,
-            stride=2
+            stride=2,
         )
 
         self.ERBlock_2 = nn.Sequential(
@@ -46,14 +46,14 @@ class EfficientRep(nn.Module):
                 in_channels=channels_list[0],
                 out_channels=channels_list[1],
                 kernel_size=3,
-                stride=2
+                stride=2,
             ),
             RepBlock(
                 in_channels=channels_list[1],
                 out_channels=channels_list[1],
                 n=num_repeats[1],
                 block=block,
-            )
+            ),
         )
 
         self.ERBlock_3 = nn.Sequential(
@@ -61,14 +61,14 @@ class EfficientRep(nn.Module):
                 in_channels=channels_list[1],
                 out_channels=channels_list[2],
                 kernel_size=3,
-                stride=2
+                stride=2,
             ),
             RepBlock(
                 in_channels=channels_list[2],
                 out_channels=channels_list[2],
                 n=num_repeats[2],
                 block=block,
-            )
+            ),
         )
 
         self.ERBlock_4 = nn.Sequential(
@@ -76,14 +76,14 @@ class EfficientRep(nn.Module):
                 in_channels=channels_list[2],
                 out_channels=channels_list[3],
                 kernel_size=3,
-                stride=2
+                stride=2,
             ),
             RepBlock(
                 in_channels=channels_list[3],
                 out_channels=channels_list[3],
                 n=num_repeats[3],
                 block=block,
-            )
+            ),
         )
 
         self.ERBlock_5 = nn.Sequential(
@@ -102,8 +102,8 @@ class EfficientRep(nn.Module):
             SimSPPF(
                 in_channels=channels_list[4],
                 out_channels=channels_list[4],
-                kernel_size=5
-            )
+                kernel_size=5,
+            ),
         )
 
     def forward(self, x):

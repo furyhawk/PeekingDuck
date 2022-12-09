@@ -14,7 +14,12 @@
 
 import torch
 from torch import nn
-from peekingduck.nodes.model.yolov6_core.layers.common import RepBlock, SimConv, Transpose, RepVGGBlock
+from peekingduck.nodes.model.yolov6_core.layers.common import (
+    RepBlock,
+    SimConv,
+    Transpose,
+    RepVGGBlock,
+)
 
 
 class RepPANNeck(nn.Module):
@@ -38,35 +43,35 @@ class RepPANNeck(nn.Module):
             in_channels=channels_list[3] + channels_list[5],
             out_channels=channels_list[5],
             n=num_repeats[5],
-            block=block
+            block=block,
         )
 
         self.Rep_p3 = RepBlock(
             in_channels=channels_list[2] + channels_list[6],
             out_channels=channels_list[6],
             n=num_repeats[6],
-            block=block
+            block=block,
         )
 
         self.Rep_n3 = RepBlock(
             in_channels=channels_list[6] + channels_list[7],
             out_channels=channels_list[8],
             n=num_repeats[7],
-            block=block
+            block=block,
         )
 
         self.Rep_n4 = RepBlock(
             in_channels=channels_list[5] + channels_list[9],
             out_channels=channels_list[10],
             n=num_repeats[8],
-            block=block
+            block=block,
         )
 
         self.reduce_layer0 = SimConv(
             in_channels=channels_list[4],
             out_channels=channels_list[5],
             kernel_size=1,
-            stride=1
+            stride=1,
         )
 
         self.upsample0 = Transpose(
@@ -78,26 +83,25 @@ class RepPANNeck(nn.Module):
             in_channels=channels_list[5],
             out_channels=channels_list[6],
             kernel_size=1,
-            stride=1
+            stride=1,
         )
 
         self.upsample1 = Transpose(
-            in_channels=channels_list[6],
-            out_channels=channels_list[6]
+            in_channels=channels_list[6], out_channels=channels_list[6]
         )
 
         self.downsample2 = SimConv(
             in_channels=channels_list[6],
             out_channels=channels_list[7],
             kernel_size=3,
-            stride=2
+            stride=2,
         )
 
         self.downsample1 = SimConv(
             in_channels=channels_list[8],
             out_channels=channels_list[9],
             kernel_size=3,
-            stride=2
+            stride=2,
         )
 
     def forward(self, input):
