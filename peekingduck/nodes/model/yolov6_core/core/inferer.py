@@ -243,7 +243,7 @@ class Inferer:
             img_src = np.asarray(img_ori)
         del img
         del image
-        
+
         return bboxes, labels, scores
 
     @staticmethod
