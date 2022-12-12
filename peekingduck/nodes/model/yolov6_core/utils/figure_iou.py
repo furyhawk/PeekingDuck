@@ -21,7 +21,9 @@ import torch
 class IOUloss:
     """Calculate IoU loss."""
 
-    def __init__(self, box_format="xywh", iou_type="ciou", reduction="none", eps=1e-7):
+    def __init__(
+        self, box_format="xywh", iou_type="ciou", reduction="none", eps=1e-7
+    ) -> None:
         """Setting of the class.
         Args:
             box_format: (string), must be one of 'xywh' or 'xyxy'.
@@ -29,10 +31,10 @@ class IOUloss:
             reduction: (string), specifies the reduction to apply to the output, must be one of 'none', 'mean','sum'.
             eps: (float), a value to avoid divide by zero error.
         """
-        self.box_format = box_format
-        self.iou_type = iou_type.lower()
-        self.reduction = reduction
-        self.eps = eps
+        self.box_format: str = box_format
+        self.iou_type: str = iou_type.lower()
+        self.reduction: str = reduction
+        self.eps: float = eps
 
     def __call__(self, box1, box2):
         """calculate iou. box1 and box2 are torch tensor with shape [M, 4] and [Nm 4]."""
