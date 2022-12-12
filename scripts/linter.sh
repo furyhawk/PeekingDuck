@@ -1,6 +1,6 @@
 #!/bin/sh
 
-MINLINTSCORE=10
+MINLINTSCORE=9
 
 if ! (pylint --fail-under=$MINLINTSCORE --extension-pkg-whitelist=cv2 peekingduck); then
     echo "PYLINT ERROR: score below required lint score"

@@ -241,8 +241,10 @@ class Inferer:
                 scores.append(float(conf))
 
             img_src = np.asarray(img_ori)
-
-            return bboxes, labels, scores
+        del img
+        del image
+        
+        return bboxes, labels, scores
 
     @staticmethod
     def precess_image(img_src, img_size, stride, half):
