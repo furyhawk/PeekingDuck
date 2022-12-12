@@ -25,7 +25,7 @@ import numpy as np
 from peekingduck.nodes.base import ThresholdCheckerMixin, WeightsDownloaderMixin
 from peekingduck.nodes.model.yolov6_core.core.inferer import Inferer
 
-ROOT = os.getcwd()
+ROOT: str = os.getcwd()
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
 
@@ -48,8 +48,8 @@ class YOLOV6Model(ThresholdCheckerMixin, WeightsDownloaderMixin):
     """
 
     def __init__(self, config: Dict[str, Any]) -> None:
-        self.config = config
-        self.logger = logging.getLogger(__name__)
+        self.config: Dict[str, Any] = config
+        self.logger: logging.Logger = logging.getLogger(__name__)
 
         self.check_bounds(["iou_thres", "conf_thres"], "[0, 1]")
 
@@ -69,7 +69,7 @@ class YOLOV6Model(ThresholdCheckerMixin, WeightsDownloaderMixin):
         self.detect_ids = self.config["class_names"]  # change "detect_ids" to "detect"
 
         # Inference
-        self.inferer = Inferer(
+        self.inferer: Inferer = Inferer(
             self.config["source"],
             self.config["weights"],
             self.config["device"],
@@ -87,7 +87,7 @@ class YOLOV6Model(ThresholdCheckerMixin, WeightsDownloaderMixin):
     def detect_ids(self, ids: List[int]) -> None:
         if not isinstance(ids, list):
             raise TypeError("detect_ids has to be a list")
-        self._detect_ids = ids
+        self._detect_ids: List[int] = ids
 
     def predict(self, image: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Predicts bboxes from image.

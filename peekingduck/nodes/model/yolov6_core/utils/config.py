@@ -45,7 +45,7 @@ class ConfigDict(Dict):
         raise ex
 
 
-class Config():
+class Config:
     @staticmethod
     def _file2dict(filename):
         filename = str(filename)

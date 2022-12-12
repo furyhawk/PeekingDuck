@@ -25,7 +25,10 @@ from pathlib import Path
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 
-from peekingduck.nodes.model.yolov6_core.data.data_load import create_dataloader
+from peekingduck.nodes.model.yolov6_core.data.data_load import (
+    TrainValDataLoader,
+    create_dataloader,
+)
 from peekingduck.nodes.model.yolov6_core.utils.events import LOGGER, NCOLS
 from peekingduck.nodes.model.yolov6_core.utils.nms import non_max_suppression
 from peekingduck.nodes.model.yolov6_core.utils.checkpoint import load_checkpoint
@@ -50,20 +53,20 @@ class Evaler:
         device="",
         half=True,
         save_dir="",
-    ):
+    ) -> None:
         self.data = data
-        self.batch_size = batch_size
-        self.img_size = img_size
-        self.conf_thres = conf_thres
-        self.iou_thres = iou_thres
-        self.device = device
-        self.half = half
-        self.save_dir = save_dir
+        self.batch_size: int = batch_size
+        self.img_size: int = img_size
+        self.conf_thres: float = conf_thres
+        self.iou_thres: float = iou_thres
+        self.device: str = device
+        self.half: bool = half
+        self.save_dir: str = save_dir
 
     def init_model(self, model, weights, task):
         if task != "train":
             model = load_checkpoint(weights, map_location=self.device)
-            self.stride = int(model.stride.max())
+            self.stride: int = int(model.stride.max())
             if self.device.type != "cpu":
                 model(
                     torch.zeros(1, 3, self.img_size, self.img_size)
@@ -88,10 +91,12 @@ class Evaler:
         Returns a dataloader for task val or speed.
         """
         self.is_coco = self.data.get("is_coco", False)
-        self.ids = self.coco80_to_coco91_class() if self.is_coco else list(range(1000))
+        self.ids: list[int] = (
+            self.coco80_to_coco91_class() if self.is_coco else list(range(1000))
+        )
         if task != "train":
-            pad = 0.0 if task == "speed" else 0.5
-            dataloader = create_dataloader(
+            pad: float = 0.0 if task == "speed" else 0.5
+            dataloader: TrainValDataLoader = create_dataloader(
                 self.data[task if task in ("train", "val", "test") else "val"],
                 self.img_size,
                 self.batch_size,
@@ -114,19 +119,19 @@ class Evaler:
         for imgs, targets, paths, shapes in pbar:
 
             # pre-process
-            t1 = time_sync()
+            t1: float = time_sync()
             imgs = imgs.to(self.device, non_blocking=True)
             imgs = imgs.half() if self.half else imgs.float()
             imgs /= 255
             self.speed_result[1] += time_sync() - t1  # pre-process time
 
             # Inference
-            t2 = time_sync()
+            t2: float = time_sync()
             outputs = model(imgs)
             self.speed_result[2] += time_sync() - t2  # inference time
 
             # post-process
-            t3 = time_sync()
+            t3: float = time_sync()
             outputs = non_max_suppression(
                 outputs, self.conf_thres, self.iou_thres, multi_label=True
             )
@@ -164,11 +169,11 @@ class Evaler:
             with open(pred_json, "w") as f:
                 json.dump(pred_results, f)
 
-            anno = COCO(anno_json)
-            pred = anno.loadRes(pred_json)
-            cocoEval = COCOeval(anno, pred, "bbox")
+            anno: COCO = COCO(anno_json)
+            pred: COCO = anno.loadRes(pred_json)
+            cocoEval: COCOeval = COCOeval(anno, pred, "bbox")
             if self.is_coco:
-                imgIds = [
+                imgIds: list[int] = [
                     int(os.path.basename(x).split(".")[0])
                     for x in dataloader.dataset.img_paths
                 ]
@@ -184,7 +189,7 @@ class Evaler:
             return (map50, map)
         return (0.0, 0.0)
 
-    def eval_speed(self, task):
+    def eval_speed(self, task) -> None:
         """Evaluate model inference speed."""
         if task != "train":
             n_samples = self.speed_result[0].item()
@@ -257,7 +262,7 @@ class Evaler:
         return pred_results
 
     @staticmethod
-    def check_task(task):
+    def check_task(task) -> None:
         if task not in ["train", "val", "speed"]:
             raise Exception(
                 "task argument error: only support 'train' / 'val' / 'speed' task."
@@ -268,10 +273,10 @@ class Evaler:
         """Sets conf and iou threshold for task val/speed"""
         if task != "train":
             if task == "val":
-                conf_thres = 0.001
+                conf_thres: float = 0.001
             if task == "speed":
-                conf_thres = 0.25
-                iou_thres = 0.45
+                conf_thres: float = 0.25
+                iou_thres: float = 0.45
         return conf_thres, iou_thres
 
     @staticmethod
@@ -299,9 +304,11 @@ class Evaler:
         return data
 
     @staticmethod
-    def coco80_to_coco91_class():  # converts 80-index (val2014) to 91-index (paper)
+    def coco80_to_coco91_class() -> list[
+        int
+    ]:  # converts 80-index (val2014) to 91-index (paper)
         # https://tech.amikelive.com/node-718/what-object-categories-labels-are-in-coco-dataset/
-        x = [
+        x: list[int] = [
             1,
             2,
             3,
@@ -436,7 +443,7 @@ class Evaler:
             for i, (num, detbox, detscore, detcls) in enumerate(
                 zip(nums, boxes, scores, classes)
             ):
-                n = int(num[0])
+                n: int = int(num[0])
                 if n == 0:
                     continue
                 path, shape = Path(paths[i]), shapes[i][0]
@@ -500,7 +507,7 @@ class Evaler:
             self.speed_result[1] += time_sync() - t1  # pre-process time
 
             # inference
-            t2 = time_sync()
+            t2: float = time_sync()
             binding_addrs["image_arrays"] = int(imgs.data_ptr())
             context.execute_v2(list(binding_addrs.values()))
             # in the last batch, the nb_img may less than the batch size, so we need to fetch the valid detect results by [:nb_img]

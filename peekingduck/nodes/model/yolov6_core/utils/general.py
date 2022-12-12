@@ -18,21 +18,24 @@ import os
 import glob
 from pathlib import Path
 
-def increment_name(path):
+
+def increment_name(path) -> Path:
     "increase save directory's id"
     path = Path(path)
-    sep = ''
+    sep = ""
     if path.exists():
-        path, suffix = (path.with_suffix(''), path.suffix) if path.is_file() else (path, '')
+        path, suffix = (
+            (path.with_suffix(""), path.suffix) if path.is_file() else (path, "")
+        )
         for n in range(1, 9999):
-            p = f'{path}{sep}{n}{suffix}'
+            p: str = f"{path}{sep}{n}{suffix}"
             if not os.path.exists(p):
                 break
-        path = Path(p)
+        path: Path = Path(p)
     return path
 
 
-def find_latest_checkpoint(search_dir='.'):
+def find_latest_checkpoint(search_dir=".") -> str:
     # Find the most recent saved checkpoint in search_dir
-    checkpoint_list = glob.glob(f'{search_dir}/**/last*.pt', recursive=True)
-    return max(checkpoint_list, key=os.path.getctime) if checkpoint_list else ''
+    checkpoint_list: list[str] = glob.glob(f"{search_dir}/**/last*.pt", recursive=True)
+    return max(checkpoint_list, key=os.path.getctime) if checkpoint_list else ""

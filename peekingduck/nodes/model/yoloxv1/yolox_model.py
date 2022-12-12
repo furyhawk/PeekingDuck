@@ -49,7 +49,7 @@ class YOLOXModel(ThresholdCheckerMixin, WeightsDownloaderMixin):
         model_dir = self.download_weights()
         with open(model_dir / self.weights["classes_file"]) as infile:
             class_names = [line.strip() for line in infile.readlines()]
-        print(f'model_dir{model_dir}')
+        print(f"model_dir{model_dir}")
         self.detect_ids = self.config["detect"]  # change "detect_ids" to "detect"
         self.detector = Detector(
             model_dir,

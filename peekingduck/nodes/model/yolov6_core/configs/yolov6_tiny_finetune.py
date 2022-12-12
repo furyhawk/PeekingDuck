@@ -14,42 +14,42 @@
 
 # YOLOv6t model
 model = dict(
-    type='YOLOv6t',
-    pretrained='./weights/yolov6t.pt',
+    type="YOLOv6t",
+    pretrained="./weights/yolov6t.pt",
     depth_multiple=0.25,
     width_multiple=0.50,
     backbone=dict(
-        type='EfficientRep',
+        type="EfficientRep",
         num_repeats=[1, 6, 12, 18, 6],
         out_channels=[64, 128, 256, 512, 1024],
-        ),
+    ),
     neck=dict(
-        type='RepPAN',
+        type="RepPAN",
         num_repeats=[12, 12, 12, 12],
         out_channels=[256, 128, 128, 256, 256, 512],
-        ),
+    ),
     head=dict(
-        type='EffiDeHead',
+        type="EffiDeHead",
         in_channels=[128, 256, 512],
         num_layers=3,
         begin_indices=24,
         anchors=1,
         out_indices=[17, 20, 23],
         strides=[8, 16, 32],
-        iou_type='ciou'
-    )
+        iou_type="ciou",
+    ),
 )
 
 solver = dict(
-    optim='SGD',
-    lr_scheduler='Cosine',
+    optim="SGD",
+    lr_scheduler="Cosine",
     lr0=0.0032,
     lrf=0.12,
     momentum=0.843,
     weight_decay=0.00036,
     warmup_epochs=2.0,
     warmup_momentum=0.5,
-    warmup_bias_lr=0.05
+    warmup_bias_lr=0.05,
 )
 
 data_aug = dict(
