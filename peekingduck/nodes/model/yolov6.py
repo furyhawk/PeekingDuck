@@ -57,6 +57,8 @@ class Node(AbstractNode):  # pylint: disable=too-few-public-methods
             (Dict): Outputs dictionary with the keys `bboxes`, `bbox_labels`,
                 and `bbox_scores`.
         """
+        if inputs is None or inputs["img"] is None:
+            return {"bboxes": [[]], "bbox_labels": [''], "bbox_scores": [0]}
         bboxes, labels, scores = self.model.predict(inputs["img"])
         # bboxes = np.clip(bboxes, 0, 1)
 

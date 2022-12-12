@@ -1,7 +1,10 @@
 nodes:
 - input.visual:
-    source: 0
+    source: https://storage.googleapis.com/peekingduck/videos/single_person.mp4
 - model.yolov6
+- dabble.fps
 - draw.bbox:
     show_labels: True
+- draw.legend:
+    show: ["fps"]
 - output.screen
