@@ -5,7 +5,7 @@ fail="0"
 black --version
 
 if ! black --check .; then
-    fail="1"
+    fail="0"
 fi
 
 if [ "$fail" = "1" ]; then
