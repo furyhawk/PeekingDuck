@@ -1,6 +1,6 @@
 nodes:
 - input.visual:
-    source: "/Users/furyhawk/coco/images/val2017/000000000139.jpg"
+    source: "data/benchmark/single"
 - model.yolox
 - draw.bbox:
     show_labels: True

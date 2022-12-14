@@ -13,18 +13,20 @@
 # limitations under the License.
 
 """YOLOX models with model types: yolox-tiny, yolox-s, yolox-m, and yolox-l."""
-
+# from memory_profiler import profile
 import logging
 from typing import Any, Dict, List, Tuple
 
 import os
 import sys
 import os.path as osp
+
 import numpy as np
 
 from peekingduck.nodes.base import ThresholdCheckerMixin, WeightsDownloaderMixin
 from peekingduck.nodes.model.yolov6_core.core.inferer import Inferer
 
+# fp = open("memory_profiler_YOLOV6Model.log", "w+")
 ROOT: str = os.getcwd()
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
@@ -89,6 +91,7 @@ class YOLOV6Model(ThresholdCheckerMixin, WeightsDownloaderMixin):
             raise TypeError("detect_ids has to be a list")
         self._detect_ids: List[int] = ids
 
+    # @profile(stream=fp)
     def predict(self, image: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Predicts bboxes from image.
 
@@ -107,7 +110,8 @@ class YOLOV6Model(ThresholdCheckerMixin, WeightsDownloaderMixin):
         """
         if not isinstance(image, np.ndarray):
             raise TypeError("image must be a np.ndarray")
-        return self.inferer.predict_object_bbox_from_image(
+
+        output = self.inferer.predict_object_bbox_from_image(
             image,
             self.config["conf_thres"],
             self.config["iou_thres"],
@@ -115,3 +119,5 @@ class YOLOV6Model(ThresholdCheckerMixin, WeightsDownloaderMixin):
             self.config["agnostic_nms"],
             self.config["max_det"],
         )
+
+        return output

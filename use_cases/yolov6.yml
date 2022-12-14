@@ -1,6 +1,6 @@
 nodes:
 - input.visual:
-    source: https://storage.googleapis.com/peekingduck/videos/single_person.mp4
+    source: 0
 - model.yolov6
 - dabble.fps
 - draw.bbox:

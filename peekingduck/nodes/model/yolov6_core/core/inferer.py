@@ -13,9 +13,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+# from memory_profiler import profile
 import os
 import os.path as osp
+
 import math
 from tqdm import tqdm
 import numpy as np
@@ -30,8 +31,11 @@ from peekingduck.nodes.model.yolov6_core.utils.nms import non_max_suppression
 from peekingduck.utils.bbox.transforms import xyxy2xyxyn
 
 
+# fp = open("memory_profiler_Inferer.log", "w+")
+
+
 class Inferer:
-    def __init__(self, source, weights, device, img_size, half, class_names):
+    def __init__(self, source, weights, device, img_size, half, class_names) -> None:
         import glob
         from peekingduck.nodes.model.yolov6_core.data.datasets import IMG_FORMATS
 
@@ -41,8 +45,8 @@ class Inferer:
         self.device = device
         self.img_size = img_size
         cuda = self.device != "cpu" and torch.cuda.is_available()
-        self.device = torch.device("cuda:0" if cuda else "cpu")
-        self.model = DetectBackend(weights, device=self.device)
+        self.device: device = torch.device("cuda:0" if cuda else "cpu")
+        self.model: DetectBackend = DetectBackend(weights, device=self.device)
         self.stride = self.model.stride  # 32
         self.class_names = class_names
 
@@ -66,12 +70,12 @@ class Inferer:
 
         # Load data
         if os.path.isdir(source):
-            img_paths = sorted(glob.glob(os.path.join(source, "*.*")))  # dir
+            img_paths: list[str] = sorted(glob.glob(os.path.join(source, "*.*")))  # dir
         elif os.path.isfile(source):
             img_paths = [source]  # files
         else:
             raise Exception(f"Invalid path: {source}")
-        self.img_paths = [
+        self.img_paths: list[str] = [
             img_path
             for img_path in img_paths
             if img_path.split(".")[-1].lower() in IMG_FORMATS
@@ -80,7 +84,7 @@ class Inferer:
         # Switch model to deploy status
         self.model_switch(self.model, self.img_size)
 
-    def model_switch(self, model, img_size):
+    def model_switch(self, model, img_size) -> None:
         """Model switch to deploy status"""
         from peekingduck.nodes.model.yolov6_core.layers.common import RepVGGBlock
 
@@ -103,7 +107,7 @@ class Inferer:
         save_img,
         hide_labels,
         hide_conf,
-    ):
+    ) -> None:
         """Model Inference and results visualization"""
 
         for img_path in tqdm(self.img_paths):
@@ -125,13 +129,13 @@ class Inferer:
                 max_det=max_det,
             )[0]
 
-            save_path = osp.join(save_dir, osp.basename(img_path))  # im.jpg
-            txt_path = osp.join(
+            save_path: str = osp.join(save_dir, osp.basename(img_path))  # im.jpg
+            txt_path: str = osp.join(
                 save_dir, "labels", osp.splitext(osp.basename(img_path))[0]
             )
 
             gn = torch.tensor(img_src.shape)[[1, 0, 1, 0]]  # normalization gain whwh
-            img_ori = img_src
+            img_ori: str = img_src
 
             # check image and font
             assert (
@@ -160,7 +164,7 @@ class Inferer:
                             f.write(("%g " * len(line)).rstrip() % line + "\n")
 
                     if save_img:
-                        class_num = int(cls)  # integer class
+                        class_num: int = int(cls)  # integer class
                         label = (
                             None
                             if hide_labels
@@ -185,6 +189,8 @@ class Inferer:
                 if save_img:
                     cv2.imwrite(save_path, img_src)
 
+    # @profile(stream=fp)
+    @torch.no_grad()
     def predict_object_bbox_from_image(
         self,
         image,
@@ -195,8 +201,6 @@ class Inferer:
         max_det,
     ):
         """Model Inference and results visualization"""
-
-        # for img_path in tqdm(self.img_paths):
         img, img_src = self.precess_image(image, image.shape[1], self.stride, self.half)
         img = img.to(self.device)
         if len(img.shape) == 3:
@@ -229,7 +233,7 @@ class Inferer:
             # print(det[:, :4], det[:, 4])
 
             for *xyxy, conf, cls in reversed(det):
-                class_num = int(cls)  # integer class
+                class_num: int = int(cls)  # integer class
                 bboxes.append(
                     xyxy2xyxyn(
                         torch.tensor(xyxy),
@@ -239,10 +243,6 @@ class Inferer:
                 )
                 labels.append(f"{self.class_names[class_num]} {conf:.2f}")
                 scores.append(float(conf))
-
-            img_src = np.asarray(img_ori)
-        del img
-        del image
 
         return bboxes, labels, scores
 

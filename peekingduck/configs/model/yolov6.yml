@@ -8,12 +8,12 @@ classes: null
 agnostic_nms: true
 fuse: false
 half: false
-source: "/Users/furyhawk/coco/images/val2017/000000000139.jpg"
-weights: "/Users/furyhawk/PeekingDuck/peekingduck_weights/yolov6/yolov6chkpt.pt"
+source: "data/benchmark/single"
+weights: "peekingduck_weights/yolov6/yolov6chkpt.pt"
 
 conf_thres: 0.25
 iou_thres: 0.45
-device: "cpu"
+device: "cuda"
 hide_conf: false
 hide_labels: false
 img_size: 640

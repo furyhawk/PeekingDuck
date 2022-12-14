@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Core PeekingDuck CLI commands."""
+# import cProfile
 
 import logging
 import os
@@ -123,7 +124,9 @@ def run(  # pylint: disable=too-many-arguments
         )
         end_time = perf_counter()
         logger.debug(f"Startup time = {end_time - start_time:.2f} sec")
+        # with cProfile.Profile() as pr:
         runner.run()
+            # pr.dump_stats('yolov6')
 
 
 @click.command()
