@@ -1,0 +1,7 @@
+nodes:
+- input.visual:
+    source: "data/benchmark/single"
+- model.yolox
+- draw.bbox:
+    show_labels: True
+- output.screen

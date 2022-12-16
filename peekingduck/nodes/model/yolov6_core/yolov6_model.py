@@ -13,17 +13,26 @@
 # limitations under the License.
 
 """YOLOX models with model types: yolox-tiny, yolox-s, yolox-m, and yolox-l."""
-
+# from memory_profiler import profile
 import logging
 from typing import Any, Dict, List, Tuple
+
+import os
+import sys
+import os.path as osp
 
 import numpy as np
 
 from peekingduck.nodes.base import ThresholdCheckerMixin, WeightsDownloaderMixin
-from peekingduck.nodes.model.yoloxv1.yolox_files.detector import Detector
+from peekingduck.nodes.model.yolov6_core.core.inferer import Inferer
+
+# fp = open("memory_profiler_YOLOV6Model.log", "w+")
+ROOT: str = os.getcwd()
+if str(ROOT) not in sys.path:
+    sys.path.append(str(ROOT))
 
 
-class YOLOXModel(ThresholdCheckerMixin, WeightsDownloaderMixin):
+class YOLOV6Model(ThresholdCheckerMixin, WeightsDownloaderMixin):
     """Validates configuration, loads YOLOX model, and performs inference.
 
     Configuration options are validated to ensure they have valid types and
@@ -41,31 +50,34 @@ class YOLOXModel(ThresholdCheckerMixin, WeightsDownloaderMixin):
     """
 
     def __init__(self, config: Dict[str, Any]) -> None:
-        self.config = config
-        self.logger = logging.getLogger(__name__)
+        self.config: Dict[str, Any] = config
+        self.logger: logging.Logger = logging.getLogger(__name__)
 
-        self.check_bounds(["iou_threshold", "score_threshold"], "[0, 1]")
+        self.check_bounds(["iou_thres", "conf_thres"], "[0, 1]")
 
-        model_dir = self.download_weights()
-        with open(model_dir / self.weights["classes_file"]) as infile:
-            class_names = [line.strip() for line in infile.readlines()]
-        print(f"model_dir{model_dir}")
-        self.detect_ids = self.config["detect"]  # change "detect_ids" to "detect"
-        self.detector = Detector(
-            model_dir,
-            class_names,
-            self.detect_ids,
-            self.config["model_format"],
-            self.config["model_type"],
-            self.config["num_classes"],
-            self.config["model_size"],
-            self.weights["model_file"],
-            self.config["agnostic_nms"],
-            self.config["fuse"],
+        # create save dir
+        self.save_dir = osp.join(self.config["project"], "yolov6")
+        if (self.config["save_img"] or self.config["save_txt"]) and not osp.exists(
+            self.save_dir
+        ):
+            os.makedirs(self.save_dir)
+        else:
+            self.logger.warning("Save directory already existed")
+        if self.config["save_txt"]:
+            save_txt_path = osp.join(self.save_dir, "labels")
+            if not osp.exists(save_txt_path):
+                os.makedirs(save_txt_path)
+
+        self.detect_ids = self.config["class_names"]  # change "detect_ids" to "detect"
+
+        # Inference
+        self.inferer: Inferer = Inferer(
+            self.config["source"],
+            self.config["weights"],
+            self.config["device"],
+            self.config["img_size"],
             self.config["half"],
-            self.config["input_size"],
-            self.config["iou_threshold"],
-            self.config["score_threshold"],
+            self.config["class_names"],
         )
 
     @property
@@ -77,8 +89,9 @@ class YOLOXModel(ThresholdCheckerMixin, WeightsDownloaderMixin):
     def detect_ids(self, ids: List[int]) -> None:
         if not isinstance(ids, list):
             raise TypeError("detect_ids has to be a list")
-        self._detect_ids = ids
+        self._detect_ids: List[int] = ids
 
+    # @profile(stream=fp)
     def predict(self, image: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Predicts bboxes from image.
 
@@ -97,4 +110,14 @@ class YOLOXModel(ThresholdCheckerMixin, WeightsDownloaderMixin):
         """
         if not isinstance(image, np.ndarray):
             raise TypeError("image must be a np.ndarray")
-        return self.detector.predict_object_bbox_from_image(image)
+
+        output = self.inferer.predict_object_bbox_from_image(
+            image,
+            self.config["conf_thres"],
+            self.config["iou_thres"],
+            self.config["classes"],
+            self.config["agnostic_nms"],
+            self.config["max_det"],
+        )
+
+        return output

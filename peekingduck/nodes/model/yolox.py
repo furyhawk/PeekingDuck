@@ -103,7 +103,6 @@ class Node(AbstractNode):  # pylint: disable=too-few-public-methods
         bboxes = np.clip(bboxes, 0, 1)
 
         outputs = {"bboxes": bboxes, "bbox_labels": labels, "bbox_scores": scores}
-
         return outputs
 
     def _get_config_types(self) -> Dict[str, Any]:

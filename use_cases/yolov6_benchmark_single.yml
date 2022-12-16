@@ -1,0 +1,6 @@
+nodes:
+- input.visual:
+    source: "data/benchmark/single"
+
+- model.yolov6
+- dabble.fps
