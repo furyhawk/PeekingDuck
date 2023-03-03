@@ -222,3 +222,71 @@ class TFImageClassificationDataset(tf.keras.utils.Sequence):
         self.indexes = np.arange(len(self.list_IDs))
         if self.shuffle == True:
             np.random.shuffle(self.indexes)
+
+
+class PTObjectDetectionDataset(Dataset):
+    """Template for Image Classification Dataset."""
+
+    def __init__(
+        self,
+        cfg: DictConfig,
+        df: pd.DataFrame,
+        stage: str = "train",
+        transforms: TransformTypes = None,
+        **kwargs: Dict[str, Any],
+    ) -> None:
+        """"""
+
+        super().__init__(**kwargs)
+        self.cfg: DictConfig = cfg
+        self.df: pd.DataFrame = df
+        self.stage: str = stage
+        self.transforms: TransformTypes = transforms
+
+        self.image_path = df[cfg.dataset.image_path_col_name].values
+        self.targets = df[cfg.dataset.target_col_id].values if stage != "test" else None
+
+    def __len__(self) -> int:
+        """Return the length of the dataset."""
+        return len(self.df.index)
+
+    def __getitem__(self, index: int) -> Union[Tuple, Any]:
+        """Generate one batch of data"""
+        image_path: str = self.image_path[index]
+        image: Tensor = cv2.imread(image_path)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image = self.apply_image_transforms(image)
+
+        # Get target for all modes except for test dataset.
+        # If test, replace target with dummy ones as placeholder.
+        target = self.targets[index] if self.stage != "test" else torch.ones(1)
+        # target = self.apply_target_transforms(target)
+
+        # TODO: consider stage to be private since it is only used internally.
+        if self.stage in ["train", "valid", "debug"]:
+            return image, target
+        elif self.stage == "test":
+            return image
+        else:
+            raise ValueError(f"Invalid stage {self.stage}.")
+
+    def apply_image_transforms(self, image: torch.Tensor) -> Tensor:
+        """Apply transforms to the image."""
+        if self.transforms and isinstance(self.transforms, A.Compose):
+            image = self.transforms(image=image)["image"]
+        elif self.transforms and isinstance(self.transforms, T.Compose):
+            image = self.transforms(image)
+        else:
+            image = torch.from_numpy(image).permute(2, 0, 1)  # convert HWC to CHW
+        return image
+
+    # pylint: disable=no-self-use # not yet!
+    def apply_target_transforms(
+        self, target: torch.Tensor, dtype: torch.dtype = torch.long
+    ) -> torch.Tensor:
+        """Apply transforms to the target.
+        Note:
+            This is useful for tasks such as segmentation object detection where
+            targets are in the form of bounding boxes, segmentation masks etc.
+        """
+        return torch.tensor(target, dtype=dtype)

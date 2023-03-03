@@ -23,14 +23,3 @@ class_name_to_id:
   horse: 7
   ship: 8
   truck: 9
-classes:
-  - airplane
-  - automobile
-  - bird
-  - cat
-  - deer
-  - dog
-  - frog
-  - horse
-  - ship
-  - truck
