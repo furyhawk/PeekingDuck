@@ -22,7 +22,7 @@ from omegaconf import DictConfig
 import pandas as pd
 
 from src.data.base import AbstractDataSet
-from src.data.dataset import PTImageClassificationDataset
+from src.data.dataset import PTImageClassificationDataset, PTObjectDetectionDataset
 from src.data.data_adapter import DataAdapter
 from src.transforms.augmentations import ImageClassificationTransforms
 from src.utils.general_utils import (
@@ -167,6 +167,163 @@ class ImageClassificationDataModule:
                     transforms=self.valid_transforms,
                 )
                 self.test_dataset: AbstractDataSet = PTImageClassificationDataset(
+                    self.cfg,
+                    df=self.test_df,
+                    stage="test",
+                    transforms=self.test_transforms,
+                )
+            if self.cfg.framework == "tensorflow":
+                self.train_dataset = self.train_df
+                self.valid_dataset = self.valid_df
+                self.test_dataset = self.test_df
+
+        self.dataset_loader = DataAdapter(self.cfg.data_adapter[self.cfg.framework])
+
+    @staticmethod
+    def _cross_validation_split(
+        resample_strategy: DictConfig,
+        df: pd.DataFrame,
+        fold: Optional[int] = None,
+        stratify_by: Optional[list] = None,
+    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """Split the dataframe into train and validation dataframes."""
+        resample_func = instantiate(resample_strategy)
+
+        if stratify_by is None:
+            return resample_func(df)
+
+        logger.info(f"stratify_by: {stratify_by}")
+        return resample_func(df, stratify=df[stratify_by])
+
+
+class ObjectDetectionDataModule:
+    """Data module for generic image classification dataset."""
+
+    def __init__(
+        self,
+        cfg: DictConfig,
+        **kwargs: Dict[str, Any],
+    ) -> None:
+        self.cfg: DictConfig = cfg
+        self.transforms: ImageClassificationTransforms = ImageClassificationTransforms(
+            cfg.transform[cfg.framework]
+        )
+        self.dataset_loader: Union[DataAdapter, None] = None  # Setup in self.setup()
+
+    def get_train_dataset(self) -> DataAdapter:
+        """Return training data loader adapter"""
+        assert self.dataset_loader is not None, "call setup() before getting dataloader"
+        return self.dataset_loader.train_dataloader(
+            self.train_dataset,
+            transforms=self.train_transforms,
+        )
+
+    def get_validation_dataset(self) -> DataAdapter:
+        """Return validation data loader adapter"""
+        assert self.dataset_loader is not None, "call setup() before getting dataloader"
+        return self.dataset_loader.validation_dataloader(
+            self.valid_dataset,
+            transforms=self.valid_transforms,
+        )
+
+    def get_test_dataloader(self) -> DataAdapter:
+        """Return test data loader adapter"""
+        assert self.dataset_loader is not None, "call setup() before getting dataloader"
+        return self.dataset_loader.test_dataloader(
+            self.test_dataset,
+            transforms=self.test_transforms,
+        )
+
+    def prepare_data(self) -> None:
+        """Step 2 after __init__()
+        Load the dataframe from user-defined csv file"""
+        url: str = self.cfg.dataset.url
+        blob_file: str = self.cfg.dataset.blob_file
+        root_dir: Path = Path(self.cfg.dataset.root_dir)
+        train_dir: Path = Path(self.cfg.dataset.train_dir)
+        test_dir: Path = Path(self.cfg.dataset.test_dir)
+        class_name_to_id: Dict[str, int] = self.cfg.dataset.class_name_to_id
+        train_csv: str = self.cfg.dataset.train_csv
+        stratify_by: List[Any] = self.cfg.dataset.stratify_by
+
+        if self.cfg.dataset.download:
+            logger.info(f"downloading from {url} to {blob_file} in {root_dir}")
+            download_to(url, blob_file, root_dir)
+            extract_file(root_dir, blob_file)
+
+        train_images: Union[List[str], List[Path]] = return_list_of_files(
+            train_dir, extensions=[".jpg", ".png", ".jpeg"], return_string=False
+        )
+        test_images: Union[List[str], List[Path]] = return_list_of_files(
+            test_dir, extensions=[".jpg", ".png", ".jpeg"], return_string=False
+        )
+        logger.info(f"Total number of images: {len(train_images)}")
+        logger.info(f"Total number of test images: {len(test_images)}")
+
+        if Path(train_csv).exists():
+            # this step is assumed to be done by user where
+            # image_path is inside the csv.
+            df: pd.DataFrame = pd.read_csv(train_csv)
+        else:
+            # TODO: only invoke this if images are store in the following format
+            # train_dir
+            #   - class1 ...
+            df = create_dataframe_with_image_info(
+                train_images,
+                class_name_to_id,
+                save_path=train_csv,
+            )
+        logger.info(df.head())
+
+        self.train_df: pd.DataFrame = df
+        self.test_df: pd.DataFrame
+        self.valid_df: pd.DataFrame
+
+        self.train_df, self.test_df = self._cross_validation_split(
+            self.cfg.resample.resample_strategy, df, stratify_by=stratify_by
+        )
+        self.train_df, self.valid_df = self._cross_validation_split(
+            self.cfg.resample.resample_strategy, self.train_df, stratify_by=stratify_by
+        )
+
+        if self.cfg.debug:
+            num_debug_samples: int = self.cfg.num_debug_samples
+            logger.info(
+                f"Debug mode is on, using {num_debug_samples} images for training."
+            )
+            if stratify_by is None:
+                self.train_df = self.train_df.sample(num_debug_samples)
+                self.valid_df = self.valid_df.sample(num_debug_samples)
+            else:
+                self.train_df = stratified_sample_df(
+                    self.train_df, stratify_by, num_debug_samples
+                )
+                self.valid_df = stratified_sample_df(
+                    self.valid_df, stratify_by, num_debug_samples
+                )
+
+        logger.info(self.train_df.info())
+
+    def setup(self, stage: str) -> None:
+        """Step 3 after prepare()"""
+        self.train_transforms: Compose = self.transforms.train_transforms
+        self.valid_transforms: Compose = self.transforms.valid_transforms
+        self.test_transforms: Compose = self.transforms.test_transforms
+        if stage == "fit":
+            if self.cfg.framework == "pytorch":
+                self.train_dataset: AbstractDataSet = PTObjectDetectionDataset(
+                    self.cfg,
+                    df=self.train_df,
+                    stage="train",
+                    transforms=self.train_transforms,
+                )
+                self.valid_dataset: AbstractDataSet = PTObjectDetectionDataset(
+                    self.cfg,
+                    df=self.valid_df,
+                    stage="valid",
+                    transforms=self.valid_transforms,
+                )
+                self.test_dataset: AbstractDataSet = PTObjectDetectionDataset(
                     self.cfg,
                     df=self.test_df,
                     stage="test",
