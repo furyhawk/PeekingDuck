@@ -6,6 +6,24 @@
         .wy-table-responsive table td ul li{
             list-style-type: none;
         }
+
+        div.install .training-framework-btn {
+            display: inline-block;
+            margin: 12px 6px;
+            padding: 5px 11px;
+            background-color: #fff3cd;
+            border: none;
+            border-radius: 3px;
+            color: black;
+            font-size: 90%;
+            font-family: "Nunito", sans-serif;
+            font-weight: 400;
+        }
+
+        div.install .training-framework-btn.active {
+            background-color: #a76d60;
+            color: white;
+        }
    </style>
 
 *********************
@@ -17,18 +35,155 @@ Image Classification
 
    /training_pipeline/02_configuring_training_parameters/use_case/02a_image_classification
 
-.. raw:: html
-
-   <div class="install">
-     <strong>Framework</strong>
-     <input type="radio" name="framework" id="training-framework-py" checked="checked">
-     <label for="training-framework-py">Pytorch</label>
-     <input type="radio" name="framework" id="training-framework-tf">
-     <label for="training-framework-tf">Tensorflow</label>
-   </div>
-   <br><br>
 
 We are using the yaml syntax for the config file
+
+Main Config
+===========
+
+.. raw:: html
+
+   <div class="wy-table-responsive">
+        <table class="docutils align-default">
+            <thead>
+                <tr class="row-odd">
+                    <th colspan="3" class="head"><p>Key</p></th>
+                    <th class="head"><p>Value</p></th>
+                    <th class="head"><p>Description</p></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td colspan="3"><code class="xref"><span class="pre">device</span></code></td>
+                    <td><p>"auto"</p></td>
+                    <td><p>"auto" to select available gpu. "cpu"|"cuda"|"mps"</p></td>
+                </tr>
+                <tr>
+                    <td colspan="3"><code class="xref"><span class="pre">project_name</span></code></td>
+                    <td><p>"cifar10"</p></td>
+                    <td><p>rsna | cifar10 | vegfru5 | vegfru15 | vegfru25 | "your-project-name" </p></td>
+                </tr>
+                <tr>
+                    <td colspan="3"><code class="xref"><span class="pre">debug</span></code></td>
+                    <td><p>True</p></td>
+                    <td><p>True | False</p></td>
+                </tr>
+                <tr>
+                    <td colspan="3"><code class="xref"><span class="pre">framework</span></code></td>
+                    <td><p>"tensorflow"</p></td>
+                    <td><p>'pytorch' | 'tensorflow'</p></td>
+                </tr>
+                <tr>
+                    <td colspan="3"><code class="xref"><span class="pre">random_state</span></code></td>
+                    <td><p>11</p></td>
+                    <td><p>Any number above 0</p></td>
+                </tr>
+                <tr>
+                    <td colspan="3"><code class="xref"><span class="pre">view_only</span></code></td>
+                    <td><p>False</p></td>
+                    <td><p>True | False</p></td>
+                </tr>
+                <tr>
+                    <td colspan="3"><code class="xref"><span class="pre">defaults</span></code></td>
+                    <td><p></p></td>
+                    <td><p></p></td>
+                </tr>
+                <tr>
+                    <td><p></p></td>
+                    <td colspan="2"><code class="xref"><span class="pre">use_case</span></code></td>
+                    <td><p>classification</p></td>
+                    <td><p>classification | detection | segmentation</p></td>
+                </tr>
+                <tr>
+                    <td><p></p></td>
+                    <td colspan="2"><code class="xref"><span class="pre">data_module</span></code></td>
+                    <td><p>cifar10</p></td>
+                    <td><p>rsna | cifar10 | vegfru5 | vegfru15 | vegfru25 | "main-data_module-filename"</p></td>
+                </tr>
+                <tr>
+                    <td><p></p></td>
+                    <td colspan="2"><code class="xref"><span class="pre">model</span></code></td>
+                    <td><p>${use_case}</p></td>
+                    <td><p></p></td>
+                </tr>
+                <tr>
+                    <td><p></p></td>
+                    <td colspan="2"><code class="xref"><span class="pre">trainer</span></code></td>
+                    <td><p>${use_case}</p></td>
+                    <td><p></p></td>
+                </tr>
+                <tr>
+                    <td><p></p></td>
+                    <td colspan="2"><code class="xref"><span class="pre">callbacks</span></code></td>
+                    <td><p>${use_case}</p></td>
+                    <td><p></p></td>
+                </tr>
+                <tr>
+                    <td><p></p></td>
+                    <td colspan="2"><code class="xref"><span class="pre">metrics</span></code></td>
+                    <td><p>${use_case}</p></td>
+                    <td><p></p></td>
+                </tr>
+                <tr>
+                    <td><p></p></td>
+                    <td colspan="2"><code class="xref"><span class="pre">model_analysis</span></code></td>
+                    <td><p>${use_case}</p></td>
+                    <td><p></p></td>
+                </tr>
+                <tr>
+                    <td><p></p></td>
+                    <td colspan="2"><code class="xref"><span class="pre">stores</span></code></td>
+                    <td><p>${use_case}</p></td>
+                    <td><p></p></td>
+                </tr>
+                <tr>
+                    <td><p></p></td>
+                    <td colspan="2"><code class="xref"><span class="pre">override hydra/job_logging</span></code></td>
+                    <td><p>custom</p></td>
+                    <td><p></p></td>
+                </tr>
+                <tr>
+                    <td colspan="3"><code class="xref"><span class="pre">hydra</span></code></td>
+                    <td><p></p></td>
+                    <td><p></p></td>
+                </tr>
+                <tr>
+                    <td><p></p></td>
+                    <td colspan="2"><code class="xref"><span class="pre">run</span></code></td>
+                    <td><p></p></td>
+                    <td><p></p></td>
+                </tr>
+                <tr>
+                    <td><p></p></td>
+                    <td><p></p></td>
+                    <td><code class="xref"><span class="pre">dir</span></code></td>
+                    <td><p>"outputs/${project_name}/${stores.unique_id}"</p></td>
+                    <td><p></p></td>
+                </tr>
+                <tr>
+                    <td><p></p></td>
+                    <td colspan="2"><code class="xref"><span class="pre">sweep</span></code></td>
+                    <td><p></p></td>
+                    <td><p></p></td>
+                </tr>
+                <tr>
+                    <td><p></p></td>
+                    <td><p></p></td>
+                    <td><code class="xref"><span class="pre">dir</span></code></td>
+                    <td><p>outputs/${project_name}/${stores.unique_id}</p></td>
+                    <td><p></p></td>
+                </tr>
+                <tr>
+                    <td><p></p></td>
+                    <td><p></p></td>
+                    <td><code class="xref"><span class="pre">subdir</span></code></td>
+                    <td><p>${hydra.job.num}</p></td>
+                    <td><p></p></td>
+                </tr>
+            </tbody>
+        </table>
+   </div>
+
 
 Data
 ====
@@ -93,10 +248,9 @@ Data
 .. raw:: html
 
    <div class="install">
-     <input type="radio" name="framework" id="training-framework3" class="training-framework-py" checked="checked">
-     <label for="training-framework-py">Pytorch</label>
-     <input type="radio" name="framework" id="training-framework4" class="training-framework-tf">
-     <label for="training-framework-tf">Tensorflow</label>
+     <strong>Framework</strong>
+     <button class="training-framework-btn training-framework-py active">Pytorch</button>
+     <button class="training-framework-btn training-framework-tf">Tensorflow</button>
    </div>
    <br><br>
 
@@ -507,10 +661,9 @@ Model
 .. raw:: html
 
    <div class="install">
-     <input type="radio" name="framework" id="training-framework5" class="training-framework-py" checked="checked">
-     <label for="training-framework-py">Pytorch</label>
-     <input type="radio" name="framework" id="training-framework6" class="training-framework-tf">
-     <label for="training-framework-tf">Tensorflow</label>
+     <strong>Framework</strong>
+     <button class="training-framework-btn training-framework-py active">Pytorch</button>
+     <button class="training-framework-btn training-framework-tf">Tensorflow</button>
    </div>
    <br><br>
 
@@ -523,54 +676,56 @@ Model
             <table class="docutils align-default">
                 <thead>
                     <tr class="row-odd">
-                        <th class="head"><p>Key</p></th>
+                        <th colspan="2" class="head"><p>Key</p></th>
                         <th class="head"><p>Value</p></th>
                         <th class="head"><p>Description</p></th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
-                        <td><code class="xref"><span class="pre">adapter</span></code></td>
+                        <td colspan="2"><code class="xref"><span class="pre">adapter</span></code></td>
                         <td><p>"timm"</p</td>
                         <td><p></p></td>
                     </tr>
                     <tr>
-                        <td><code class="xref"><span class="pre">task</span></code></td>
+                        <td colspan="2"><code class="xref"><span class="pre">task</span></code></td>
                         <td><p>"classification"</p</td>
                         <td><p></p></td>
                     </tr>
                     <tr>
-                        <td><code class="xref"><span class="pre">model_name</span></code></td>
+                        <td colspan="2"><code class="xref"><span class="pre">model_name</span></code></td>
                         <td><p>"vgg16"</p</td>
                         <td><p></p></td>
                     </tr>
                     <tr>
-                        <td><code class="xref"><span class="pre">weights</span></code></td>
+                        <td colspan="2"><code class="xref"><span class="pre">weights</span></code></td>
                         <td><p>"DEFAULT"</p</td>
                         <td><p></p></td>
                     </tr>
                     <tr>
-                        <td><code class="xref"><span class="pre">pretrained</span></code></td>
+                        <td colspan="2"><code class="xref"><span class="pre">pretrained</span></code></td>
                         <td><p>True</p</td>
                         <td><p></p></td>
                     </tr>
                     <tr>
-                        <td><code class="xref"><span class="pre">fine_tune</span></code></td>
+                        <td colspan="2"><code class="xref"><span class="pre">fine_tune</span></code></td>
                         <td><p>True</p</td>
                         <td><p></p></td>
                     </tr>
                     <tr>
-                        <td><code class="xref"><span class="pre">fine_tune_modules</span></code></td>
+                        <td colspan="2"><code class="xref"><span class="pre">fine_tune_modules</span></code></td>
                         <td><p></p</td>
                         <td><p></p></td>
                     </tr>
                     <tr>
-                        <td><code class="xref"><span class="pre">fine_tune_modules</span></code>.features</td>
+                        <td><p></p></td>
+                        <td><code class="xref"><span class="pre">features</span></code></td>
                         <td><p>7</p</td>
                         <td><p></p></td>
                     </tr>
                     <tr>
-                        <td><code class="xref"><span class="pre">fine_tune_modules</span></code>.pre_logits</td>
+                        <td><p></p></td>
+                        <td><code class="xref"><span class="pre">pre_logits</span></code></td>
                         <td><p>[
                                 "fc1",
                                 "act1",
@@ -581,12 +736,12 @@ Model
                         <td><p></p></td>
                     </tr>
                     <tr>
-                        <td><code class="xref"><span class="pre">num_classes</span></code></td>
+                        <td colspan="2"><code class="xref"><span class="pre">num_classes</span></code></td>
                         <td><p>${data_module.dataset.num_classes}</p</td>
                         <td><p></p></td>
                     </tr>
                     <tr>
-                        <td><code class="xref"><span class="pre">device</span></code></td>
+                        <td colspan="2"><code class="xref"><span class="pre">device</span></code></td>
                         <td><p>${device}</p</td>
                         <td><p></p></td>
                     </tr>
@@ -679,29 +834,29 @@ Model Analysis
             </thead>
             <tbody>
                 <tr>
-                    <td>entity</td>
+                    <td><code class="xref"><span class="pre">entity</span></code></td>
                     <td>"peekingduck"</td>
-                    <td></td>
+                    <td><p></p></td>
                 </tr>
                 <tr>
-                    <td>project</td>
+                    <td><code class="xref"><span class="pre">project</span></code></td>
                     <td>"${project_name}"</td>
-                    <td></td>
+                    <td><p></p></td>
                 </tr>
                 <tr>
-                    <td>run_name</td>
+                    <td><code class="xref"><span class="pre">run_name</span></code></td>
                     <td>"${stores.unique_id}"</td>
-                    <td></td>
+                    <td><p></p></td>
                 </tr>
                 <tr>
-                    <td>framework</td>
+                    <td><code class="xref"><span class="pre">framework</span></code></td>
                     <td>"${framework}"</td>
-                    <td></td>
+                    <td><p></p></td>
                 </tr>
                 <tr>
-                    <td>debug</td>
+                    <td><code class="xref"><span class="pre">debug</span></code></td>
                     <td>${debug}</td>
-                    <td></td>
+                    <td><p></p></td>
                 </tr>
             </tbody>
         </table>
@@ -714,12 +869,12 @@ Trainer
 .. raw:: html
 
    <div class="install">
-     <input type="radio" name="framework" id="training-framework7" class="training-framework-py" checked="checked">
-     <label for="training-framework-py">Pytorch</label>
-     <input type="radio" name="framework" id="training-framework8" class="training-framework-tf">
-     <label for="training-framework-tf">Tensorflow</label>
+     <strong>Framework</strong>
+     <button class="training-framework-btn training-framework-py active">Pytorch</button>
+     <button class="training-framework-btn training-framework-tf">Tensorflow</button>
    </div>
    <br><br>
+   <p>The trainer class will make use of this configs.</p>
 
 .. raw:: html
 
@@ -749,10 +904,9 @@ Metrics
 .. raw:: html
 
    <div class="install">
-     <input type="radio" name="framework" id="training-framework9" class="training-framework-py" checked="checked">
-     <label for="training-framework-py">Pytorch</label>
-     <input type="radio" name="framework" id="training-framework10" class="training-framework-tf">
-     <label for="training-framework-tf">Tensorflow</label>
+     <strong>Framework</strong>
+     <button class="training-framework-btn training-framework-py active">Pytorch</button>
+     <button class="training-framework-btn training-framework-tf">Tensorflow</button>
    </div>
    <br><br>
 
@@ -761,61 +915,85 @@ Metrics
    <div class="install">
      <div class="pkd-expandable training-pytorch">
         <h4>Pytorch</h4>
-        # Options: Accuracy | Precision | Recall | AUROC | CalibrationError
+        <p></p>
+        <p>Refer to <a href="https://torchmetrics.readthedocs.io/en/stable/all-metrics.html">Torch Metrics</a> documentation for more metrics you can use and their details.</p>
+        <p>These are the default values:
+        <ul>
+            <li>Accuracy</li>
+            <li>Precision</li>
+            <li>Recall</li>
+            <li>AUROC</li>
+        </ul>
+        </p>
+        <p>The table below shows the default values:</p>
         <div class="wy-table-responsive">
             <table class="docutils align-default">
                 <thead>
                     <tr class="row-odd">
-                        <th class="head"><p>Key</p></th>
+                        <th colspan="2" class="head"><p>Key</p></th>
                         <th class="head"><p>Value</p></th>
                         <th class="head"><p>Description</p></th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
-                        <td>Accuracy</td>
+                        <td colspan="2"><code class="xref"><span class="pre">Accuracy</span></code></td>
                         <td></td>
                         <td></td>
                     </tr>
                     <tr>
-                        <td>Accuracy.average</td>
+                        <td><p></p></td>
+                        <td><code class="xref"><span class="pre">average</span></code></td>
                         <td>"micro"</td>
+                        <td>
+                            Defines the reduction that is applied over labels. 
+                            <br>Should be one of the following:
+                            <br>micro: Sum statistics over all labels
+                            <br>macro: Calculate statistics for each label and average them
+                            <br>weighted: Calculates statistics for each label and computes weighted average using their support
+                            "none" or None: Calculates statistic for each label and applies no reduction
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2"><code class="xref"><span class="pre">Precision</span></code></td>
+                        <td></td>
                         <td></td>
                     </tr>
                     <tr>
-                        <td>Precision</td>
-                        <td></td>
-                        <td></td>
-                    </tr>
-                    <tr>
-                        <td>Precision.average</td>
+                        <td><p></p></td>
+                        <td><code class="xref"><span class="pre">average</span></code></td>
                         <td>"macro"</td>
+                        <td>
+                            Defines the reduction that is applied over labels. 
+                            <br>Should be one of the following:
+                            <br>micro: Sum statistics over all labels
+                            <br>macro: Calculate statistics for each label and average them
+                            <br>weighted: Calculates statistics for each label and computes weighted average using their support
+                            "none" or None: Calculates statistic for each label and applies no reduction
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2"><code class="xref"><span class="pre">Recall</span></code></td>
+                        <td></td>
                         <td></td>
                     </tr>
                     <tr>
-                        <td>Recall</td>
+                        <td colspan="2"><code class="xref"><span class="pre">AUROC</span></code></td>
                         <td></td>
                         <td></td>
                     </tr>
                     <tr>
-                        <td>AUROC</td>
-                        <td></td>
-                        <td></td>
-                    </tr>
-                    <tr>
-                        <td>AUROC.average</td>
+                        <td><p></p></td>
+                        <td><code class="xref"><span class="pre">average</span></code></td>
                         <td>"weighted"</td>
-                        <td></td>
-                    </tr>
-                    <tr>
-                        <td>CalibrationError</td>
-                        <td></td>
-                        <td></td>
-                    </tr>
-                    <tr>
-                        <td>CalibrationError.norm</td>
-                        <td>"l1"</td>
-                        <td></td>
+                        <td>
+                            Defines the reduction that is applied over labels. 
+                            <br>Should be one of the following:
+                            <br>micro: Sum statistics over all labels
+                            <br>macro: Calculate statistics for each label and average them
+                            <br>weighted: Calculates statistics for each label and computes weighted average using their support
+                            "none" or None: Calculates statistic for each label and applies no reduction
+                        </td>
                     </tr>
                 </tbody>
             </table>
@@ -824,60 +1002,73 @@ Metrics
      </div>
      <div class="pkd-expandable training-tensorflow">
         <h4>Tensorflow</h4>
-        <p># Options: Accuracy | Precision | Recall | AUC</p>
-        <p>Check out the <a href="https://www.tensorflow.org/api_docs/python/tf/keras/metrics">TensorFlow v2 Metrics</a> documentation for more details</p>
+        <p>Refer to the <a href="https://www.tensorflow.org/api_docs/python/tf/keras/metrics">TensorFlow v2 Metrics</a> documentation for more metrics you can use and their details.</p>
+        <p>Commonly used metrics:
+        <ul>
+            <li>Accuracy</li>
+            <li>Precision</li>
+            <li>Recall</li>
+            <li>AUC</li>
+        </ul>
+        </p>
+        <p>The table below shows the default values:</p>        
         <div class="wy-table-responsive">
             <table class="docutils align-default">
                 <thead>
                     <tr class="row-odd">
-                        <th class="head"><p>Key</p></th>
+                        <th colspan="2" class="head"><p>Key</p></th>
                         <th class="head"><p>Value</p></th>
                         <th class="head"><p>Description</p></th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
-                        <td>CategoricalAccuracy</td>
+                        <td colspan="2"><code class="xref"><span class="pre">CategoricalAccuracy</span></code></td>
                         <td></td>
                         <td></td>
                     </tr>
                     <tr>
-                        <td>Precision</td>
+                        <td colspan="2"><code class="xref"><span class="pre">Precision</span></code></td>
                         <td></td>
                         <td></td>
                     </tr>
                     <tr>
-                        <td>Precision.thresholds</td>
+                        <td><p></p></td>
+                        <td><code class="xref"><span class="pre">thresholds</span></code></td>
                         <td>0.5</td>
                         <td></td>
                     </tr>
                     <tr>
-                        <td>Recall</td>
+                        <td colspan="2"><code class="xref"><span class="pre">Recall</span></code></td>
                         <td></td>
                         <td></td>
                     </tr>
                     <tr>
-                        <td>Recall.thresholds</td>
+                        <td><p></p></td>
+                        <td><code class="xref"><span class="pre">thresholds</span></code></td>
                         <td>0.5</td>
                         <td></td>
                     </tr>
                     <tr>
-                        <td>AUC</td>
+                        <td colspan="2"><code class="xref"><span class="pre">AUC</span></code></td>
                         <td></td>
                         <td></td>
                     </tr>
                     <tr>
-                        <td>AUC.from_logits</td>
+                        <td><p></p></td>
+                        <td><code class="xref"><span class="pre">from_logits</span></code></td>
                         <td>False</td>
                         <td></td>
                     </tr>
                     <tr>
-                        <td>AUC.multi_label</td>
+                        <td><p></p></td>
+                        <td><code class="xref"><span class="pre">multi_label</span></code></td>
                         <td>True</td>
                         <td></td>
                     </tr>
                     <tr>
-                        <td>AUC.num_labels</td>
+                        <td><p></p></td>
+                        <td><code class="xref"><span class="pre">num_labels</span></code></td>
                         <td>${data_module.dataset.num_classes}</td>
                         <td></td>
                     </tr>
@@ -895,10 +1086,9 @@ Callbacks
 .. raw:: html
 
    <div class="install">
-     <input type="radio" name="framework" id="training-framework11" class="training-framework-py" checked="checked">
-     <label for="training-framework-py">Pytorch</label>
-     <input type="radio" name="framework" id="training-framework12" class="training-framework-tf">
-     <label for="training-framework-tf">Tensorflow</label>
+     <strong>Framework</strong>
+     <button class="training-framework-btn training-framework-py active">Pytorch</button>
+     <button class="training-framework-btn training-framework-tf">Tensorflow</button>
    </div>
    <br><br>
 
@@ -907,72 +1097,97 @@ Callbacks
    <div class="install">
      <div class="pkd-expandable training-pytorch">
         <h4>Pytorch</h4>
+        <p>These are the only available callbacks currently. It is important to note that the callbacks are automatically sorted (as per the list sequence below) during initialization:
+        <ol>
+            <li>History (required)</li>
+            <li>MetricMeter (required)</li>
+            <li>ModelCheckpoint (required)</li>
+            <li>Logger</li>
+            <li>EarlyStopping</li>
+        </ol>
+        </p>
         <p>The table below shows the default values:</p>
-        <p>These are the only available callbacks as of v1.0:<br>EarlyStopping | History | MetricMeter | ModelCheckpoint</p>
         <div class="wy-table-responsive">
             <table class="docutils align-default">
                 <thead>
                     <tr class="row-odd">
-                        <th class="head"><p>Key</p></th>
+                        <th colspan="2" class="head"><p>Key</p></th>
                         <th class="head"><p>Value</p></th>
                         <th class="head"><p>Description</p></th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr class="row-even">
-                        <td>Logger</td>
+                        <td colspan="2"><code class="xref"><span class="pre">Logger</span></code></td>
                         <td></td>
-                        <td></td>
+                        <td>Incharge of printing the train and validation loop metrics and summaries.</td>
                     </tr>
                     <tr class="row-odd">
-                        <td>EarlyStopping</td>
+                        <td colspan="2"><code class="xref"><span class="pre">EarlyStopping</span></code></td>
                         <td></td>
-                        <td></td>
+                        <td>Stop training when a monitored metric has stopped improving.</td>
                     </tr>
                     <tr class="row-even">
-                        <td>EarlyStopping.mode</td>
-                        <td>"max"</td>
-                        <td></td>
-                    </tr>
-                    <tr class="row-odd">
-                        <td>EarlyStopping.monitor</td>
-                        <td>"val_MulticlassAccuracy"</td>
-                        <td></td>
-                    </tr>
-                    <tr class="row-even">
-                        <td>EarlyStopping.patience</td>
+                        <td><p></p></td>
+                        <td><code class="xref"><span class="pre">patience</span></code></td>
                         <td>${trainer.pytorch.global_train_params.patience}</td>
-                        <td></td>
+                        <td>Number of epochs with no improvement after which training will be stopped.</td>
                     </tr>
                     <tr class="row-odd">
-                        <td>EarlyStopping.min_delta</td>
-                        <td>0.000001 # 1e-6</td>
-                        <td></td>
+                        <td><p></p></td>
+                        <td><code class="xref"><span class="pre">monitor</span></code></td>
+                        <td>${trainer.pytorch.global_train_params.monitored_metric.monitor}</td>
+                        <td>Name of the metric to monitor, should be one of the keys in metrics list.</td>
                     </tr>
                     <tr class="row-even">
-                        <td>History</td>
+                        <td><p></p></td>
+                        <td><code class="xref"><span class="pre">mode</span></code></td>
+                        <td>${trainer.pytorch.global_train_params.monitored_metric.mode}</td>
+                        <td>"min" or "max"
+                        <br><br>In min mode, training will stop when the quantity monitored has stopped decreasing.
+                        <br>In "max" mode it will stop when the quantity monitored has stopped increasing.</td>
+                    </tr>
+                    <tr class="row-even">
+                        <td colspan="2"><code class="xref"><span class="pre">History</span></code></td>
                         <td></td>
-                        <td></td>
+                        <td>Callback that records events into a History object.</td>
                     </tr>
                     <tr class="row-odd">
-                        <td>MetricMeter</td>
+                        <td colspan="2"><code class="xref"><span class="pre">MetricMeter</span></code></td>
                         <td></td>
-                        <td></td>
+                        <td>Calculates the cumulative metric score, cumulative count and average score
+                        <br><br>
+                        Note after 1 full loop epoch,
+                        <br>the model has traversed through all batches in the dataloader.
+                        <br>So, the average score is the average of all batches in the dataloader.
+                        <br>for eg, if train set has 1000 samples and batch size is 100,
+                        <br>then the model will have traversed through 10 batches in 1 epoch.
+                        <br>then the cumulative count is "step" which is 10 in this case.
+                        <br>the cumulative metric score is the sum of all the metric scores of all batches.
+                        <br>so add up all the metric scores of all batches and divide by the cumulative count.
+                        <br>this is the average score of all batches in 1 epoch.
+                        </td>
                     </tr>
                     <tr class="row-even">
-                        <td>ModelCheckpoint</td>
+                        <td colspan="2"><code class="xref"><span class="pre">ModelCheckpoint</span></code></td>
                         <td></td>
-                        <td></td>
+                        <td>Callback to save the model or model weights at some frequency.</td>
+                    </tr>
+                    <tr class="row-even">
+                        <td><p></p></td>
+                        <td><code class="xref"><span class="pre">monitor</span></code></td>
+                        <td>${trainer.pytorch.global_train_params.monitored_metric.monitor}</td>
+                        <td>Name of the metric to monitor, should be one of the keys in metrics list.</td>
                     </tr>
                     <tr class="row-odd">
-                        <td>ModelCheckpoint.mode</td>
-                        <td>"max"</td>
-                        <td></td>
-                    </tr>
-                    <tr class="row-even">
-                        <td>ModelCheckpoint.monitor</td>
-                        <td>"val_MulticlassAccuracy"</td>
-                        <td></td>
+                        <td><p></p></td>
+                        <td><code class="xref"><span class="pre">mode</span></code></td>
+                        <td>${trainer.pytorch.global_train_params.monitored_metric.mode}</td>
+                        <td>
+                            "max" or "min"<br>
+                            <br>In "min" mode, training will stop when the quantity monitored has stopped decreasing
+                            <br>in "max" mode it will stop when the quantity monitored has stopped increasing.                        
+                        </td>
                     </tr>
                 </tbody>
             </table>
@@ -981,37 +1196,41 @@ Callbacks
      </div>
      <div class="pkd-expandable training-tensorflow">
         <h4>Tensorflow</h4>
+        <p>Check out the <a href="https://www.tensorflow.org/api_docs/python/tf/keras/callbacks">TensorFlow v2 Callbacks</a> documentation for more details.
+        <br>While technically you can use any callbacks listed in the keras API, only EarlyStopping has been tested.</p>
         <p>The table below shows the default values:</p>
-        <p>Check out the <a href="https://www.tensorflow.org/api_docs/python/tf/keras/callbacks">TensorFlow v2 Callbacks</a> documentation for more details</p>
         <div class="wy-table-responsive">
             <table class="docutils align-default">
                 <thead>
                     <tr class="row-odd">
-                        <th class="head"><p>Key</p></th>
+                        <th colspan="2" class="head"><p>Key</p></th>
                         <th class="head"><p>Value</p></th>
                         <th class="head"><p>Description</p></th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr class="row-even">
-                        <td>EarlyStopping</td>
+                        <td colspan="2"><code class="xref"><span class="pre">EarlyStopping</span></code></td>
                         <td></td>
-                        <td></td>
+                        <td>Stop training when a monitored metric has stopped improving.</td>
                     </tr>
                     <tr class="row-odd">
-                        <td>EarlyStopping.patience</td>
+                        <td><p></p></td>
+                        <td><code class="xref"><span class="pre">patience</span></code></td>
                         <td>3</td>
-                        <td></td>
+                        <td>Number of epochs with no improvement after which training will be stopped.</td>
                     </tr>
                     <tr class="row-even">
-                        <td>EarlyStopping.restore_best_weights</td>
+                        <td><p></p></td>
+                        <td><code class="xref"><span class="pre">restore_best_weights</span></code></td>
                         <td>True</td>
-                        <td></td>
+                        <td>Whether to restore model weights from the epoch with the best value of the monitored quantity.<br>If False, the model weights obtained at the last step of training are used.<br>An epoch will be restored regardless of the performance relative to the baseline.<br>If no epoch improves on baseline, training will run for patience epochs and restore weights from the best epoch in that set.</td>
                     </tr>
                     <tr class="row-odd">
-                        <td>EarlyStopping.monitor</td>
+                        <td><p></p></td>
+                        <td><code class="xref"><span class="pre">monitor</span></code></td>
                         <td>"val_categorical_accuracy"</td>
-                        <td></td>
+                        <td>Metric to be monitored.</td>
                     </tr>
                 </tbody>
             </table>
@@ -1026,7 +1245,6 @@ Store
 
 .. raw:: html
 
-   <h4>Default Values</h4>
    <div class="wy-table-responsive">
         <table class="docutils align-default">
             <thead>
@@ -1038,9 +1256,13 @@ Store
             </thead>
             <tbody>
                 <tr class="row-even">
-                    <td><p><span class="">unique_id</span></p></td>
+                    <td><code class="xref"><span class="pre">unique_id</span></code></td>
                     <td><p>${now:%Y%m%d_%H%M%S}</p></td>
-                    <td></td>
+                    <td>Used in:<ul>
+                        <li>- Hydra run and sweep directory path</li>
+                        <li>- Model analysis run_name</li>
+                        <li>- Pytorch Training model artifacts directory</li>
+                    </ul></td>
                 </tr>
             </tbody>
         </table>
