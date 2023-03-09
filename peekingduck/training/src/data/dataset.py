@@ -12,16 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
+import os
 from typing import Any, Dict, List, Optional, Tuple, Union
+import logging
+
 import numpy as np
 from omegaconf import DictConfig
 
 import albumentations as A
 import cv2
+from PIL import Image, ImageOps
 import pandas as pd
+from configs import LOGGER_NAME
 
-from src.config import TORCH_AVAILABLE, TF_AVAILABLE
+from src.utils.general_utils import exif_size, segments2boxes
+from src.config import TORCH_AVAILABLE, TF_AVAILABLE, IMG_FORMATS
+
+logger = logging.getLogger(LOGGER_NAME)  # pylint: disable=invalid-name
 
 if TORCH_AVAILABLE:
     import torch
@@ -61,7 +68,7 @@ class PTImageClassificationDataset(Dataset):
         self.transforms: TransformTypes = transforms
 
         self.image_path = dataframe[cfg.dataset.image_path_col_name].values
-        self.targets = (
+        self.label_path = (
             dataframe[cfg.dataset.target_col_id].values if stage != "test" else None
         )
 
@@ -79,6 +86,7 @@ class PTImageClassificationDataset(Dataset):
         # Get target for all modes except for test dataset.
         # If test, replace target with dummy ones as placeholder.
         target = self.targets[index] if self.stage != "test" else torch.ones(1)
+        target = self.apply_target_transforms(target)
         # target = self.apply_target_transforms(target)
 
         # TODO: consider stage to be private since it is only used internally.
@@ -228,12 +236,12 @@ class TFImageClassificationDataset(tf.keras.utils.Sequence):
 
 
 class PTObjectDetectionDataset(Dataset):
-    """Template for Image Classification Dataset."""
+    """Template for Object Detection Dataset."""
 
     def __init__(
         self,
         cfg: DictConfig,
-        df: pd.DataFrame,
+        dataframe: pd.DataFrame,
         stage: str = "train",
         transforms: TransformTypes = None,
         **kwargs: Dict[str, Any],
@@ -242,16 +250,18 @@ class PTObjectDetectionDataset(Dataset):
 
         super().__init__(**kwargs)
         self.cfg: DictConfig = cfg
-        self.df: pd.DataFrame = df
+        self.dataframe: pd.DataFrame = dataframe
         self.stage: str = stage
         self.transforms: TransformTypes = transforms
 
-        self.image_path = df[cfg.dataset.image_path_col_name].values
-        self.targets = df[cfg.dataset.target_col_id].values if stage != "test" else None
+        self.image_path = dataframe[cfg.dataset.image_path_col_name].values
+        self.targets = (
+            dataframe[cfg.dataset.target_col_id].values if stage != "test" else None
+        )
 
     def __len__(self) -> int:
         """Return the length of the dataset."""
-        return len(self.df.index)
+        return len(self.dataframe.index)
 
     def __getitem__(self, index: int) -> Union[Tuple, Any]:
         """Generate one batch of data"""
@@ -262,10 +272,11 @@ class PTObjectDetectionDataset(Dataset):
 
         # Get target for all modes except for test dataset.
         # If test, replace target with dummy ones as placeholder.
-        target = self.targets[index] if self.stage != "test" else torch.ones(1)
-        # target = self.apply_target_transforms(target)
+        target = {"labels": []}
+        if self.stage != "test":
+            label_path = self.label_path[index]
+            target = self.get_labels(label_path, self.cfg.dataset.num_classes)
 
-        # TODO: consider stage to be private since it is only used internally.
         if self.stage in ["train", "valid", "debug"]:
             return image, target
         elif self.stage == "test":
@@ -283,7 +294,6 @@ class PTObjectDetectionDataset(Dataset):
             image = torch.from_numpy(image).permute(2, 0, 1)  # convert HWC to CHW
         return image
 
-    # pylint: disable=no-self-use # not yet!
     def apply_target_transforms(
         self, target: torch.Tensor, dtype: torch.dtype = torch.long
     ) -> torch.Tensor:
@@ -292,4 +302,90 @@ class PTObjectDetectionDataset(Dataset):
             This is useful for tasks such as segmentation object detection where
             targets are in the form of bounding boxes, segmentation masks etc.
         """
+        # self.labels = self.get_labels()
         return torch.tensor(target, dtype=dtype)
+
+    def verify_image(self, im_file):
+        msg = ""
+        # verify images
+        im = Image.open(im_file)
+        im.verify()  # PIL verify
+        shape = exif_size(im)  # image size
+        shape = (shape[1], shape[0])  # hw
+        assert (shape[0] > 9) & (shape[1] > 9), f"image size {shape} <10 pixels"
+        assert im.format.lower() in IMG_FORMATS, f"invalid image format {im.format}"
+        if im.format.lower() in ("jpg", "jpeg"):
+            with open(im_file, "rb") as f:
+                f.seek(-2, 2)
+                if f.read() != b"\xff\xd9":  # corrupt JPEG
+                    ImageOps.exif_transpose(Image.open(im_file)).save(
+                        im_file, "JPEG", subsampling=0, quality=100
+                    )
+                    msg = f"WARNING ⚠️ {im_file}: corrupt JPEG restored and saved"
+        return msg
+
+    def verify_label(self, lb_file, num_cls):
+        try:
+            # verify labels
+            if os.path.isfile(lb_file):
+                with open(lb_file) as f:
+                    lb = [x.split() for x in f.read().strip().splitlines() if len(x)]
+                    if any(len(x) > 6 for x in lb):  # is segment
+                        classes = np.array([x[0] for x in lb], dtype=np.float32)
+                        segments = [
+                            np.array(x[1:], dtype=np.float32).reshape(-1, 2) for x in lb
+                        ]  # (cls, xy1...)
+                        lb = np.concatenate(
+                            (classes.reshape(-1, 1), segments2boxes(segments)), 1
+                        )  # (cls, xywh)
+                    lb = np.array(lb, dtype=np.float32)
+                    nl = len(lb)
+                    if nl:
+                        assert (
+                            lb.shape[1] == 5
+                        ), f"labels require 5 columns, {lb.shape[1]} columns detected"
+                        assert (
+                            lb[:, 1:] <= 1
+                        ).all(), f"non-normalized or out of bounds coordinates {lb[:, 1:][lb[:, 1:] > 1]}"
+
+                        # All labels
+                        max_cls = int(lb[:, 0].max())  # max label count
+                        assert max_cls <= num_cls, (
+                            f"Label class {max_cls} exceeds dataset class count {num_cls}. "
+                            f"Possible class labels are 0-{num_cls - 1}{lb}"
+                        )
+                        assert (lb >= 0).all(), f"negative label values {lb[lb < 0]}"
+                        _, i = np.unique(lb, axis=0, return_index=True)
+                        if len(i) < nl:  # duplicate row check
+                            lb = lb[i]  # remove duplicates
+                            if segments:
+                                segments = [segments[x] for x in i]
+                            logger.info(
+                                f"WARNING ⚠️ {lb_file}: {nl - len(i)} duplicate labels removed"
+                            )
+                    else:
+                        ne = 1  # label empty
+                        lb = np.zeros((0, 5), dtype=np.float32)
+
+            else:
+                nm = 1  # label missing
+                lb = np.zeros((0, 5), dtype=np.float32)
+
+            lb = lb[:, :5]
+            return lb
+        except Exception as e:
+            nc = 1
+            logger.info(f"WARNING ⚠️ {lb_file}: ignoring corrupt image/label: {e}")
+
+    def get_labels(self, label_path, num_cls):
+        y = {"labels": []}  # pylint: disable=W0631
+        targets = self.verify_label(label_path, num_cls)
+        y["labels"].append(
+            dict(
+                cls=targets[:, 0:1],  # n, 1
+                bboxes=targets[:, 1:],  # n, 4
+                normalized=True,
+                bbox_format="xywh",
+            )
+        )
+        return y

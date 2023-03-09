@@ -23,6 +23,29 @@ from configs import LOGGER_NAME
 
 logger = logging.getLogger(LOGGER_NAME)  # pylint: disable=invalid-name
 
+IMG_FORMATS = (
+    "bmp",
+    "dng",
+    "jpeg",
+    "jpg",
+    "mpo",
+    "png",
+    "tif",
+    "tiff",
+    "webp",
+    "pfm",
+)  # include image suffixes
+
+NUM_THREADS = min(
+    8, max(1, os.cpu_count() - 1)
+)  # number of multiprocessing threads
+TQDM_BAR_FORMAT = "{l_bar}{bar:10}{r_bar}"  # tqdm bar format
+LOCAL_RANK = int(
+    os.getenv("LOCAL_RANK", -1)
+)  # https://pytorch.org/docs/stable/elastic/run.html
+RANK = int(os.getenv("RANK", -1))
+PIN_MEMORY = str(os.getenv('PIN_MEMORY', True)).lower() == 'true'  # global pin_memory for dataloaders
+
 PY_VERSION = version.parse(platform.python_version())
 
 if PY_VERSION < version.parse("3.8"):

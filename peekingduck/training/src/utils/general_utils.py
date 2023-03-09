@@ -26,12 +26,14 @@ from pathlib import Path, PurePath
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import imagesize
+from PIL import ExifTags
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import requests
-from contextlib import nullcontext
+from contextlib import nullcontext, suppress
 from tqdm import tqdm
+
 from src.config import TORCH_AVAILABLE, TF_AVAILABLE
 
 if TORCH_AVAILABLE:
@@ -452,3 +454,52 @@ def merge_dict_of_list(dol1, dol2):
     result = dict(dol1, **dol2)
     result.update((k, dol1[k] + dol2[k]) for k in set(dol1).intersection(dol2))
     return result
+
+
+for orientation in ExifTags.TAGS.keys():
+    if ExifTags.TAGS[orientation] == "Orientation":
+        break
+
+
+def exif_size(img):
+    # Returns exif-corrected PIL size
+    s = img.size  # (width, height)
+    with suppress(Exception):
+        rotation = dict(img._getexif().items())[orientation]
+        if rotation in [6, 8]:  # rotation 270 or 90
+            s = (s[1], s[0])
+    return s
+
+
+def xyxy2xywh(x):
+    """
+    Convert bounding box coordinates from (x1, y1, x2, y2) format to (x, y, width, height) format.
+
+    Args:
+        x (np.ndarray) or (torch.Tensor): The input bounding box coordinates in (x1, y1, x2, y2) format.
+    Returns:
+       y (np.ndarray) or (torch.Tensor): The bounding box coordinates in (x, y, width, height) format.
+    """
+    y = x.clone() if isinstance(x, torch.Tensor) else np.copy(x)
+    y[..., 0] = (x[..., 0] + x[..., 2]) / 2  # x center
+    y[..., 1] = (x[..., 1] + x[..., 3]) / 2  # y center
+    y[..., 2] = x[..., 2] - x[..., 0]  # width
+    y[..., 3] = x[..., 3] - x[..., 1]  # height
+    return y
+
+
+def segments2boxes(segments):
+    """
+    It converts segment labels to box labels, i.e. (cls, xy1, xy2, ...) to (cls, xywh)
+
+    Args:
+      segments (list): list of segments, each segment is a list of points, each point is a list of x, y coordinates
+
+    Returns:
+      (np.ndarray): the xywh coordinates of the bounding boxes.
+    """
+    boxes = []
+    for s in segments:
+        x, y = s.T  # segment xy
+        boxes.append([x.min(), y.min(), x.max(), y.max()])  # cls, xyxy
+    return xyxy2xywh(np.array(boxes))  # cls, xywh
