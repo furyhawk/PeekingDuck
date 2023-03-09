@@ -19,24 +19,30 @@ from omegaconf import DictConfig
 
 
 class TensorFlowCallbacksAdapter:
+    """Adapter for Tensorflow callbacks"""
+
     def get_callback(
-        self, callback_name: str, parameters: Union[DictConfig, dict] = {}
+        self,
+        callback_name: str,
+        parameters: Optional[Union[DictConfig, dict, str]] = None,
     ) -> tf.keras.callbacks.Callback:
         return (
             getattr(tf.keras.callbacks, callback_name)(**parameters)
-            if len(parameters) > 0
+            if parameters is not None and len(parameters) > 0
             else getattr(tf.keras.callbacks, callback_name)
         )
 
-    def get_callbacks(self, callbacks: List[str]) -> List[tf.keras.callbacks.Callback]:
+    def get_callbacks(
+        self, callbacks: List[Union[DictConfig, dict, str]]
+    ) -> List[tf.keras.callbacks.Callback]:
         callbacks_list = []
-        for cb in callbacks:
+        for callback in callbacks:
             try:
-                if type(cb) is DictConfig:
-                    for cbkey, cbval in cb.items():
+                if isinstance(callback, DictConfig):
+                    for cbkey, cbval in callback.items():
                         callbacks_list.append(self.get_callback(cbkey, cbval))
-                elif type(cb) is str:
-                    callbacks_list.append(self.get_callback(cb))
+                elif isinstance(callback, str):
+                    callbacks_list.append(self.get_callback(callback))
                 else:
                     raise TypeError
             except NotImplementedError:

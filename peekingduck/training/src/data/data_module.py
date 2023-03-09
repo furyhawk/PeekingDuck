@@ -54,7 +54,7 @@ class ImageClassificationDataModule:
         self.dataset_loader: Union[DataAdapter, None] = None  # Setup in self.setup()
         self.kwargs = kwargs
 
-    def get_train_dataset(self) -> DataAdapter:
+    def get_train_dataloader(self) -> DataAdapter:
         """Return training data loader adapter"""
         assert self.dataset_loader is not None, "call setup() before getting dataloader"
         return self.dataset_loader.train_dataloader(
@@ -62,7 +62,7 @@ class ImageClassificationDataModule:
             transforms=self.train_transforms,
         )
 
-    def get_validation_dataset(self) -> DataAdapter:
+    def get_validation_dataloader(self) -> DataAdapter:
         """Return validation data loader adapter"""
         assert self.dataset_loader is not None, "call setup() before getting dataloader"
         return self.dataset_loader.validation_dataloader(
@@ -157,19 +157,19 @@ class ImageClassificationDataModule:
             if self.cfg.framework == "pytorch":
                 self.train_dataset: AbstractDataSet = PTImageClassificationDataset(
                     self.cfg,
-                    df=self.train_df,
+                    dataframe=self.train_df,
                     stage="train",
                     transforms=self.train_transforms,
                 )
                 self.valid_dataset: AbstractDataSet = PTImageClassificationDataset(
                     self.cfg,
-                    df=self.valid_df,
+                    dataframe=self.valid_df,
                     stage="valid",
                     transforms=self.valid_transforms,
                 )
                 self.test_dataset: AbstractDataSet = PTImageClassificationDataset(
                     self.cfg,
-                    df=self.test_df,
+                    dataframe=self.test_df,
                     stage="test",
                     transforms=self.test_transforms,
                 )
