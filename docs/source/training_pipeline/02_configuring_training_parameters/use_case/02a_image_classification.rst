@@ -38,8 +38,59 @@ Image Classification
 
 We are using the yaml syntax for the config file
 
+
+Overview
+===========
+
+.. raw:: html
+    
+    <pre>
+        peekingduck/training/configs/
+          ├── callbacks/
+          │      └── classification.yaml
+          ├── data_module/
+          │      ├── data_adapter/
+          │      │      └── adapter.yaml
+          │      ├── dataset/
+          │      │      ├── cifar10.yaml
+          │      │      ├── rsna.yaml
+          │      │      ├── vegfru5.yaml
+          │      │      ├── vegfru15.yaml
+          │      │      └── vegfru25.yaml
+          │      ├── resample/
+          │      │      └── train_test_split.yaml
+          │      ├── transform/
+          │      │      ├── test.yaml
+          │      │      └── train.yaml
+          │      ├── cifar10.yaml
+          │      ├── rsna.yaml
+          │      ├── vegfru5.yaml
+          │      ├── vegfru15.yaml
+          │      └── vegfru25.yaml
+          ├── hydra/
+          │      └── job_logging
+          │             └── custom.yaml
+          ├── metrics/
+          │      └── classification.yaml
+          ├── model/
+          │      └── classification.yaml
+          ├── model_analysis/
+          │      └── classification.yaml
+          ├── stores/
+          │      └── classification.yaml
+          ├── trainer/
+          │      └── classification.yaml
+          └── config.yaml
+    </pre>
+
+
+    <br><br>
+
+
 Main Config
 ===========
+
+``peekingduck/training/configs/config.yaml``
 
 .. raw:: html
 
@@ -193,7 +244,11 @@ Data
 
    <h4>Train Test Split</h4>
 
-   Split arrays or matrices into random train and test subsets.
+``peekingduck/training/configs/data_module/resample/train_test_split.yaml``
+
+.. raw:: html
+
+   <p>Split arrays or matrices into random train and test subsets.</p>
 
    <div class="wy-table-responsive">
         <table class="docutils align-default">
@@ -277,6 +332,8 @@ Data
 .. raw:: html
 
    <h4>Default Datasets</h4>
+
+``peekingduck/training/configs/data_module/dataset/``
 
 .. tabs::
 
@@ -658,6 +715,8 @@ Data
 Model
 =====
 
+``peekingduck/training/configs/model/classification.yaml``
+
 .. raw:: html
 
    <div class="install">
@@ -820,6 +879,8 @@ Model
 Model Analysis
 ==============
 
+``peekingduck/training/configs/model_analysis/classification.yaml``
+
 .. raw:: html
 
    <h4>Default Values</h4>
@@ -866,6 +927,8 @@ Model Analysis
 Trainer
 =======
 
+``peekingduck/training/configs/trainer/classification.yaml``
+
 .. raw:: html
 
    <div class="install">
@@ -900,6 +963,8 @@ Trainer
 
 Metrics
 =======
+
+``peekingduck/training/configs/metrics/classification.yaml``
 
 .. raw:: html
 
@@ -1083,6 +1148,8 @@ Metrics
 Callbacks
 =========
 
+``peekingduck/training/configs/callbacks/classification.yaml``
+
 .. raw:: html
 
    <div class="install">
@@ -1242,6 +1309,8 @@ Callbacks
 
 Store
 =====
+
+``peekingduck/training/configs/stores/classifications.yaml``
 
 .. raw:: html
 
