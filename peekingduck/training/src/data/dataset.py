@@ -90,7 +90,7 @@ class PTImageClassificationDataset(Dataset):
         # target = self.apply_target_transforms(target)
 
         # TODO: consider stage to be private since it is only used internally.
-        if self.stage in ["train", "valid", "debug"]:
+        if self.stage in ["train", "validation", "debug"]:
             return image, target
         elif self.stage == "test":
             return image
@@ -173,9 +173,9 @@ class TFImageClassificationDataset(tf.keras.utils.Sequence):
         image_paths_temp: List[Any] = [self.image_paths[k] for k in indexes]
 
         # Generate data
-        X, y = self._data_generation(image_paths_temp, indexes)
+        X, y = self._data_generation(image_paths_temp, indexes)  # pylint: disable=W0631
 
-        if self.stage in ["train", "valid", "debug"]:
+        if self.stage in ["train", "validation", "debug"]:
             return X, y
         elif self.stage == "test":
             return X
@@ -207,8 +207,10 @@ class TFImageClassificationDataset(tf.keras.utils.Sequence):
     ) -> Any:
         "Generates data containing batch_size samples"  # X : (n_samples, *dim, n_channels)
         # Initialization
-        X = np.empty((self.batch_size, *self.dim, self.num_channels))
-        y = np.empty((self.batch_size), dtype=int)
+        X = np.empty(
+            (self.batch_size, *self.dim, self.num_channels)
+        )  # pylint: disable=W0631
+        y = np.empty((self.batch_size), dtype=int)  # pylint: disable=W0631
 
         # Generate data
         for i, ID in enumerate(list_IDs_temp):
@@ -255,7 +257,7 @@ class PTObjectDetectionDataset(Dataset):
         self.transforms: TransformTypes = transforms
 
         self.image_path = dataframe[cfg.dataset.image_path_col_name].values
-        self.targets = (
+        self.label_path = (
             dataframe[cfg.dataset.target_col_id].values if stage != "test" else None
         )
 
@@ -272,15 +274,16 @@ class PTObjectDetectionDataset(Dataset):
 
         # Get target for all modes except for test dataset.
         # If test, replace target with dummy ones as placeholder.
-        target = {"labels": []}
+        training_data = {"labels": []}
         if self.stage != "test":
             label_path = self.label_path[index]
-            target = self.get_labels(label_path, self.cfg.dataset.num_classes)
+            training_data = self.get_labels(label_path, self.cfg.dataset.num_classes)
+            training_data["img"] = image
 
-        if self.stage in ["train", "valid", "debug"]:
-            return image, target
+        if self.stage in ["train", "validation", "debug"]:
+            return training_data
         elif self.stage == "test":
-            return image
+            return training_data
         else:
             raise ValueError(f"Invalid stage {self.stage}.")
 
@@ -378,14 +381,16 @@ class PTObjectDetectionDataset(Dataset):
             logger.info(f"WARNING ⚠️ {lb_file}: ignoring corrupt image/label: {e}")
 
     def get_labels(self, label_path, num_cls):
-        y = {"labels": []}  # pylint: disable=W0631
+        # print(num_cls)
+        # y = {"labels": []}  # pylint: disable=W0631
         targets = self.verify_label(label_path, num_cls)
-        y["labels"].append(
-            dict(
-                cls=targets[:, 0:1],  # n, 1
-                bboxes=targets[:, 1:],  # n, 4
-                normalized=True,
-                bbox_format="xywh",
-            )
+        # y["labels"].append(
+        #     dict(
+        #         cls=targets[:, 0:1],  # n, 1
+        #         bboxes=targets[:, 1:],  # n, 4
+        #     )
+        # )
+        return dict(
+            cls=targets[:, 0:1],  # n, 1
+            bboxes=targets[:, 1:],  # n, 4
         )
-        return y

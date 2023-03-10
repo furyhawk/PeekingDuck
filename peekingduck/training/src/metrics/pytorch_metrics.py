@@ -75,7 +75,7 @@ class PytorchMetrics:
             y_trues (torch.Tensor): dtype=[torch.int64], shape=(num_samples, 1); (May be float if using BCEWithLogitsLoss)
             y_preds (torch.Tensor): dtype=[torch.int64], shape=(num_samples, 1);
             y_probs (torch.Tensor): dtype=[torch.float32], shape=(num_samples, num_classes);
-            mode (str, optional): [description]. Defaults to "valid".
+            mode (str, optional): [description]. Defaults to "validation".
         """
         epoch_metrics = metrics.clone(prefix=str(prefix) + "_")
         return epoch_metrics(y_probs, y_trues.flatten())
