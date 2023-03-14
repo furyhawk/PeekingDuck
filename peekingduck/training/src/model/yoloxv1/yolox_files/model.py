@@ -1,4 +1,4 @@
-# Modifications copyright 2023 AI Singapore
+# Modifications copyright 2022 AI Singapore
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -46,8 +46,8 @@ from typing import Any, List, Tuple
 import torch
 from torch import nn
 
-from peekingduck.nodes.model.yoloxv1.yolox_files.darknet import CSPDarknet
-from peekingduck.nodes.model.yoloxv1.yolox_files.network_blocks import (
+from src.model.yoloxv1.yolox_files.darknet import CSPDarknet
+from src.model.yoloxv1.yolox_files.network_blocks import (
     BaseConv,
     CSPLayer,
 )
@@ -75,7 +75,7 @@ class YOLOX(nn.Module):
         self.head = YOLOXHead(num_classes, width)
         self.apply(YOLOX.initialize_batch_norm)
 
-    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+    def forward(self, inputs: torch.Tensor, targets=None) -> torch.Tensor:
         """Defines the computation performed at every call.
 
         Args:
@@ -89,7 +89,22 @@ class YOLOX(nn.Module):
         """
         # FPN output content features of [dark3, dark4, dark5]
         fpn_outs = self.backbone(inputs)
-        return self.head(fpn_outs)
+        if self.training:
+            assert targets is not None
+            loss, iou_loss, conf_loss, cls_loss, l1_loss, num_fg = self.head(
+                fpn_outs, targets, inputs
+            )
+            outputs = {
+                "total_loss": loss,
+                "iou_loss": iou_loss,
+                "l1_loss": l1_loss,
+                "conf_loss": conf_loss,
+                "cls_loss": cls_loss,
+                "num_fg": num_fg,
+            }
+        else:
+            outputs = self.head(fpn_outs)
+        return outputs
 
     @staticmethod
     def initialize_batch_norm(module: nn.Module) -> None:

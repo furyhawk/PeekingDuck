@@ -1,4 +1,4 @@
-# Modifications copyright 2023 AI Singapore
+# Modifications copyright 2022 AI Singapore
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,8 +39,8 @@ from typing import no_type_check
 import torch
 from torch import nn
 
-from peekingduck.nodes.model.yoloxv1.yolox_files.model import YOLOX
-from peekingduck.nodes.model.yoloxv1.yolox_files.network_blocks import BaseConv
+from src.model.yoloxv1.yolox_files.model import YOLOX
+from src.model.yoloxv1.yolox_files.network_blocks import BaseConv
 
 
 @no_type_check

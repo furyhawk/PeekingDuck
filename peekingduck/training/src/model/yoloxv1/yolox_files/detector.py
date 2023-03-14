@@ -1,4 +1,4 @@
-# Copyright 2023 AI Singapore
+# Copyright 2022 AI Singapore
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,9 +23,9 @@ import numpy as np
 import torch
 import torchvision
 
-from peekingduck.nodes.model.yoloxv1.yolox_files.model import YOLOX
-from peekingduck.nodes.model.yoloxv1.yolox_files.utils import fuse_model
-from peekingduck.utils.bbox.transforms import xywh2xyxy, xyxy2xyxyn
+from src.model.yoloxv1.yolox_files.model import YOLOX
+from src.model.yoloxv1.yolox_files.utils import fuse_model
+from src.utils.general_utils import xywh2xyxy, xyxy2xyxyn
 
 NUM_CHANNELS = 3
 
