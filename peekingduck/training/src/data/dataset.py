@@ -48,7 +48,9 @@ else:
 TransformTypes = Optional[Union[A.Compose, T.Compose]]
 
 
-class PTImageClassificationDataset(Dataset):
+class PTImageClassificationDataset(
+    Dataset
+):  # pylint: disable=too-many-instance-attributes, too-many-arguments
     """Template for Image Classification Dataset."""
 
     def __init__(
@@ -78,6 +80,13 @@ class PTImageClassificationDataset(Dataset):
 
     def __getitem__(self, index: int) -> Union[Tuple, Any]:
         """Generate one batch of data"""
+        assert self.stage in [
+            "train",
+            "valid",
+            "debug",
+            "test",
+        ], f"Invalid stage {self.stage}."
+
         image_path: str = self.image_path[index]
         image: Tensor = cv2.imread(image_path)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -89,13 +98,10 @@ class PTImageClassificationDataset(Dataset):
         target = self.apply_target_transforms(target)
         # target = self.apply_target_transforms(target)
 
-        # TODO: consider stage to be private since it is only used internally.
-        if self.stage in ["train", "validation", "debug"]:
+        if self.stage in ["train", "valid", "debug"]:
             return image, target
-        elif self.stage == "test":
+        else:  # self.stage == "test"
             return image
-        else:
-            raise ValueError(f"Invalid stage {self.stage}.")
 
     def apply_image_transforms(self, image: torch.Tensor) -> Tensor:
         """Apply transforms to the image."""
@@ -107,7 +113,6 @@ class PTImageClassificationDataset(Dataset):
             image = torch.from_numpy(image).permute(2, 0, 1)  # convert HWC to CHW
         return image
 
-    # pylint: disable=no-self-use # not yet!
     def apply_target_transforms(
         self, target: torch.Tensor, dtype: torch.dtype = torch.long
     ) -> torch.Tensor:
@@ -119,7 +124,9 @@ class PTImageClassificationDataset(Dataset):
         return torch.tensor(target, dtype=dtype)
 
 
-class TFImageClassificationDataset(tf.keras.utils.Sequence):
+class TFImageClassificationDataset(
+    tf.keras.utils.Sequence
+):  # pylint: disable=too-many-instance-attributes, too-many-arguments, invalid-name
     """Template for Image Classification Dataset."""
 
     def __init__(
@@ -166,6 +173,13 @@ class TFImageClassificationDataset(tf.keras.utils.Sequence):
             (Dict):
                 Outputs dictionary with the keys `labels`.
         """
+        assert self.stage in [
+            "train",
+            "valid",
+            "debug",
+            "test",
+        ], f"Invalid stage {self.stage}."
+
         # Generate indexes of the batch
         indexes = self.indexes[index * self.batch_size : (index + 1) * self.batch_size]
 
@@ -177,10 +191,8 @@ class TFImageClassificationDataset(tf.keras.utils.Sequence):
 
         if self.stage in ["train", "validation", "debug"]:
             return X, y
-        elif self.stage == "test":
+        else:  # self.stage == "test"
             return X
-        else:
-            raise ValueError(f"Invalid stage {self.stage}.")
 
     def load_image(self, image_path: str) -> Any:
         """Load image from `image_path`
@@ -202,20 +214,20 @@ class TFImageClassificationDataset(tf.keras.utils.Sequence):
 
     def _data_generation(
         self,
-        list_IDs_temp: List[Any],
+        list_ids_temp: List[Any],
         indexes: np.ndarray,
     ) -> Any:
         "Generates data containing batch_size samples"  # X : (n_samples, *dim, n_channels)
         # Initialization
         X = np.empty(
             (self.batch_size, *self.dim, self.num_channels)
-        )  # pylint: disable=W0631
-        y = np.empty((self.batch_size), dtype=int)  # pylint: disable=W0631
+        )  # pylint: disable=invalid-name
+        y = np.empty((self.batch_size), dtype=int)
 
         # Generate data
-        for i, ID in enumerate(list_IDs_temp):
+        for i, id in enumerate(list_ids_temp):
             # Store sample
-            X[i] = self.load_image(ID)
+            X[i] = self.load_image(id)
 
         # Store class
         y = self.targets[indexes]
@@ -267,6 +279,13 @@ class PTObjectDetectionDataset(Dataset):
 
     def __getitem__(self, index: int) -> Union[Tuple, Any]:
         """Generate one batch of data"""
+        assert self.stage in [
+            "train",
+            "valid",
+            "debug",
+            "test",
+        ], f"Invalid stage {self.stage}."
+
         image_path: str = self.image_path[index]
         image: Tensor = cv2.imread(image_path)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -280,12 +299,7 @@ class PTObjectDetectionDataset(Dataset):
             training_data = self.get_labels(label_path, self.cfg.dataset.num_classes)
             training_data["img"] = image
 
-        if self.stage in ["train", "validation", "debug"]:
-            return training_data
-        elif self.stage == "test":
-            return training_data
-        else:
-            raise ValueError(f"Invalid stage {self.stage}.")
+        return training_data
 
     def apply_image_transforms(self, image: torch.Tensor) -> Tensor:
         """Apply transforms to the image."""

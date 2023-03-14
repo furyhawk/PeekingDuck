@@ -12,11 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Tensorflow trainer"""
+
+import logging
 from typing import Any, Dict, List, Optional, Union
 from omegaconf import DictConfig
 import tensorflow as tf
-import logging
 from configs import LOGGER_NAME
+from tqdm.keras import TqdmCallback  # for progress bar
 
 from src.data.data_adapter import DataAdapter
 from src.optimizers.adapter import OptimizersAdapter
@@ -31,15 +34,17 @@ from src.utils.tf_model_utils import set_trainable_layers, unfreeze_all_layers
 logger = logging.getLogger(LOGGER_NAME)  # pylint: disable=invalid-name
 
 
-class TensorflowTrainer:
+class TensorflowTrainer:  # pylint: disable=too-many-instance-attributes, too-many-arguments
+    """Trainer class to facilitate tensorflow training."""
+
     def __init__(self, framework: str = "tensorflow") -> None:
         self.framework = framework
         self.model = None
         self.scheduler = None
         self.opt = None
         self.loss = None
-        self.metrics: Optional[List] = None
-        self.callbacks: Optional[List] = None
+        self.metrics: Optional[List] = []
+        self.callbacks: Optional[List] = []
 
     def setup(
         self,
@@ -102,11 +107,15 @@ class TensorflowTrainer:
 
     def train_summary(self, inputs: Optional[Dict[str, Any]] = None) -> None:
         """Print model summary"""
-        logger.info("\n\nModel Summary:\n")
+        logger.info(f"\n\nModel Summary:\n{inputs}")
         self.model.summary(expand_nested=True)
 
     def train(self, train_dl: DataAdapter, val_dl: DataAdapter) -> Union[Any, dict]:
+        """Model Training"""
         self.train_summary()
+
+        if self.callbacks:
+            self.callbacks.append(TqdmCallback(verbose=2))
 
         self.epochs = self.train_params.epochs
         if self.train_params.debug:
@@ -116,6 +125,7 @@ class TensorflowTrainer:
             train_dl,
             epochs=self.epochs,
             validation_data=val_dl,
+            verbose=0,
             callbacks=self.callbacks,
         )
 
@@ -126,7 +136,7 @@ class TensorflowTrainer:
         if not self.model_config.fine_tune:
             return feature_extraction_history.history
 
-        logger.info("\n\nStart fine-tuning!\n")
+        logger.info("\n\nUnfreezing parameters, please wait...\n")
 
         if self.model_config.fine_tune_all:
             unfreeze_all_layers(self.model)
@@ -147,10 +157,13 @@ class TensorflowTrainer:
             metrics=self.metrics,
         )
 
+        logger.info("\n\nStart fine-tuning!\n")
+
         fine_tuning_history = self.model.fit(
             train_dl,
             epochs=self.epochs,
             validation_data=val_dl,
+            verbose=0,
             callbacks=self.callbacks,
         )
         history: dict = merge_dict_of_list(
