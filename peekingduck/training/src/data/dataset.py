@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
+"""dataset"""
+
 from typing import Any, Dict, List, Optional, Tuple, Union
 import logging
 
@@ -42,7 +43,7 @@ if TF_AVAILABLE:
     import tensorflow as tf
 else:
     raise ImportError(
-        "Called a tensorflow-specific function but tensorflow is not installed."
+        "Called a tensorflow-specific function but tensorflow is not installed/available."
     )
 
 TransformTypes = Optional[Union[A.Compose, T.Compose]]
@@ -100,8 +101,8 @@ class PTImageClassificationDataset(
 
         if self.stage in ["train", "valid", "debug"]:
             return image, target
-        else:  # self.stage == "test"
-            return image
+        # self.stage == "test"
+        return image
 
     def apply_image_transforms(self, image: torch.Tensor) -> Tensor:
         """Apply transforms to the image."""
@@ -191,8 +192,8 @@ class TFImageClassificationDataset(
 
         if self.stage in ["train", "validation", "debug"]:
             return X, y
-        else:  # self.stage == "test"
-            return X
+        # self.stage == "test"
+        return X
 
     def load_image(self, image_path: str) -> Any:
         """Load image from `image_path`
@@ -203,15 +204,18 @@ class TFImageClassificationDataset(
         Returns:
             (ndarray):
                 Outputs image in numpy array.
+            Preprocessed numpy.array or a tf.Tensor with type float32.
+            The images are converted from RGB to BGR,
+            then each color channel is zero-centered with respect to
+            the ImageNet dataset, without scaling.
         """
         image = cv2.imread(image_path)  # BGR
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
         image = self.apply_image_transforms(image)
-        """ Preprocessed numpy.array or a tf.Tensor with type float32. The images are converted from RGB to BGR,
-            then each color channel is zero-centered with respect to the ImageNet dataset, without scaling. """
         return image
 
+    # pylint: disable=invalid-name
     def _data_generation(
         self,
         list_ids_temp: List[Any],
@@ -219,15 +223,13 @@ class TFImageClassificationDataset(
     ) -> Any:
         "Generates data containing batch_size samples"  # X : (n_samples, *dim, n_channels)
         # Initialization
-        X = np.empty(
-            (self.batch_size, *self.dim, self.num_channels)
-        )  # pylint: disable=invalid-name
+        X = np.empty((self.batch_size, *self.dim, self.num_channels))
         y = np.empty((self.batch_size), dtype=int)
 
         # Generate data
-        for i, id in enumerate(list_ids_temp):
+        for i, image_path in enumerate(list_ids_temp):
             # Store sample
-            X[i] = self.load_image(id)
+            X[i] = self.load_image(image_path)
 
         # Store class
         y = self.targets[indexes]

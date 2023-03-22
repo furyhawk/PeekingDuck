@@ -59,7 +59,8 @@ def get_sigmoid_softmax(
     return loss_func
 
 
-class PytorchTrainer:  # pylint: disable=too-many-instance-attributes, too-many-arguments
+# pylint: disable=too-many-instance-attributes,too-many-arguments,logging-fstring-interpolation
+class PytorchTrainer:
     """Object used to facilitate training."""
 
     def __init__(self, framework: str = "pytorch") -> None:
@@ -178,7 +179,8 @@ class PytorchTrainer:  # pylint: disable=too-many-instance-attributes, too-many-
             logger.info(f"Model Layer Details:\n{self.model.model}")
         # show model summary
         logger.info("\n\nModel Summary:\n")
-        # device parameter required for MPS, otherwise the torchvision will change the model back to cpu
+        # device parameter required for MPS,
+        # otherwise the torchvision will change the model back to cpu
         # reference: https://github.com/TylerYep/torchinfo
         self.model.model_summary(inputs.shape, device=self.device)
 
@@ -193,10 +195,24 @@ class PytorchTrainer:  # pylint: disable=too-many-instance-attributes, too-many-
         )
         self._invoke_callbacks(EVENTS.TRAINER_END.value)
 
+    def _update_epochs(self, mode: str) -> None:
+        """
+        Update the number of epochs based on the mode of training.
+        The available options are "train", "debug" and "fine_tune".
+        """
+        mode_dict = {
+            "train": self.train_params.epochs,
+            "debug": self.train_params.debug_epochs,
+            "fine-tune": self.train_params.fine_tune_epochs,
+        }
+        self.epochs = mode_dict.get(mode, None)
+        if self.epochs is None:
+            raise KeyError(f"Key '{mode}' is not valid")
+
     def _run_epochs(self) -> None:
-        self.epochs = self.train_params.epochs
-        if self.train_params.debug:
-            self.epochs = self.train_params.debug_epochs
+        # self.epochs = self.train_params.epochs
+        # if self.train_params.debug:
+        #     self.epochs = self.train_params.debug_epochs
 
         # implement
         for epoch in range(1, self.epochs + 1):
@@ -265,10 +281,7 @@ class PytorchTrainer:  # pylint: disable=too-many-instance-attributes, too-many-
             train_trues.extend(targets.cpu())
             train_probs.extend(y_train_prob.cpu())
 
-        (
-            train_trues_tensor,
-            train_probs_tensor,
-        ) = (
+        (train_trues_tensor, train_probs_tensor,) = (
             torch.vstack(tensors=train_trues),
             torch.vstack(tensors=train_probs),
         )
@@ -282,19 +295,22 @@ class PytorchTrainer:  # pylint: disable=too-many-instance-attributes, too-many-
         self._invoke_callbacks(EVENTS.TRAIN_LOADER_END.value)
         self._invoke_callbacks(EVENTS.TRAIN_EPOCH_END.value)
 
-    def _run_validation_epoch(
-        self, validation_loader: DataLoader
-    ) -> None:  # pylint: disable=too-many-locals
+    # pylint: disable=too-many-locals
+    def _run_validation_epoch(self, validation_loader: DataLoader) -> None:
         """Validate the model on the validation set for one epoch.
         Args:
             validation_loader (torch.utils.data.DataLoader): The validation set dataloader.
         Returns:
             Dict[str, np.ndarray]:
                 valid_loss (float): The validation loss for each epoch.
-                valid_trues (np.ndarray): The ground truth labels for each validation set. shape = (num_samples, 1)
-                valid_logits (np.ndarray): The logits for each validation set. shape = (num_samples, num_classes)
-                valid_preds (np.ndarray): The predicted labels for each validation set. shape = (num_samples, 1)
-                valid_probs (np.ndarray): The predicted probabilities for each validation set. shape = (num_samples, num_classes)
+                valid_trues (np.ndarray): The ground truth labels for each validation set.
+                                            shape = (num_samples, 1)
+                valid_logits (np.ndarray): The logits for each validation set.
+                                            shape = (num_samples, num_classes)
+                valid_preds (np.ndarray): The predicted labels for each validation set.
+                                            shape = (num_samples, 1)
+                valid_probs (np.ndarray): The predicted probabilities for each validation set.
+                                            shape = (num_samples, num_classes)
         """
         self._invoke_callbacks(EVENTS.VALID_EPOCH_START.value)
         self.model.eval()  # set to eval mode
@@ -332,7 +348,6 @@ class PytorchTrainer:  # pylint: disable=too-many-instance-attributes, too-many-
 
                 self._invoke_callbacks(EVENTS.VALID_BATCH_END.value)
                 # For OOF score and other computation.
-                # TODO: Consider giving numerical example. Consider rolling back to targets.cpu().numpy() if torch fails.
                 valid_trues.extend(targets.cpu())
                 valid_logits.extend(logits.cpu())
                 valid_preds.extend(y_valid_pred.cpu())
@@ -388,32 +403,45 @@ class PytorchTrainer:  # pylint: disable=too-many-instance-attributes, too-many-
         self._set_dataloaders(train_dl=train_loader, validation_dl=validation_loader)
         inputs, _ = next(iter(train_loader))
         self._train_setup(inputs)  # startup
+        if self.train_params.debug:
+            self._update_epochs("debug")
+        else:
+            self._update_epochs("train")
+
+        # check for correct fine-tune setting before start training
+        assert isinstance(
+            self.model_config.fine_tune, bool
+        ), f"Unknown fine_tune setting '{self.model_config.fine_tune}'"
+
         self._run_epochs()
 
         # fine-tuning
         if self.model_config.fine_tune:
-            logger.info("\n\nUnfreezing parameters, please wait...\n")
-
-            if self.model_config.fine_tune_all:
-                unfreeze_all_params(self.model.model)
-            else:
-                # set fine-tune layers
-                set_trainable_layers(
-                    self.model.model, self.model_config.fine_tune_modules
-                )
-            # need to re-init optimizer to update the newly unfrozen parameters
-            self.optimizer = OptimizersAdapter.get_pytorch_optimizer(
-                model=self.model,
-                optimizer=self.trainer_config.optimizer_params.optimizer,
-                optimizer_params=self.trainer_config.optimizer_params.finetune_params,
-            )
-
-            logger.info("\n\nModel Summary for fine-tuning:\n")
-            self.train_summary(inputs, finetune=True)
-
-            # run epoch
-            logger.info("\n\nStart fine-tuning:\n")
-            self._run_epochs()
-
+            if not self.train_params.debug:  # update epochs only when not in debug mode
+                self._update_epochs("fine-tune")
+            self._fine_tune(inputs)
         self._train_teardown()  # shutdown
         return self.history
+
+    def _fine_tune(self, inputs: torch.Tensor) -> None:
+        # update the number of epochs as fine_tune
+        logger.info("\n\nUnfreezing parameters, please wait...\n")
+
+        if self.model_config.fine_tune_all:
+            unfreeze_all_params(self.model.model)
+        else:
+            # set fine-tune layers
+            set_trainable_layers(self.model.model, self.model_config.fine_tune_modules)
+        # need to re-init optimizer to update the newly unfrozen parameters
+        self.optimizer = OptimizersAdapter.get_pytorch_optimizer(
+            model=self.model,
+            optimizer=self.trainer_config.optimizer_params.optimizer,
+            optimizer_params=self.trainer_config.optimizer_params.finetune_params,
+        )
+
+        logger.info("\n\nModel Summary for fine-tuning:\n")
+        self.train_summary(inputs, finetune=True)
+
+        # run epoch
+        logger.info("\n\nStart fine-tuning:\n")
+        self._run_epochs()

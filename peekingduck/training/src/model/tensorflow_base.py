@@ -24,6 +24,6 @@ class TFModelFactory(ABC):
     """Model Base Class for TensorFlow."""
 
     @abstractmethod
-    def create_model(self, model_cfg: DictConfig) -> tf.keras.Model:
+    def create_model(cls, model_cfg: DictConfig) -> tf.keras.Model:
         """Build the model with base and head"""
         raise NotImplementedError

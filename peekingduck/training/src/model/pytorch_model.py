@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Callable, Union
 import timm
 import torch
 import torchvision
@@ -23,11 +24,12 @@ from torch import nn
 from omegaconf import DictConfig
 
 from src.model.pytorch_base import PTModel
-from src.utils.general_utils import seed_all, rsetattr
+from src.utils.general_utils import rsetattr
 from src.utils.pt_model_utils import freeze_all_params
 from configs import LOGGER_NAME
 
-logger = logging.getLogger(LOGGER_NAME)  # pylint: disable=invalid-name
+# pylint: disable=too-many-instance-attributes, too-many-arguments, logging-fstring-interpolation, invalid-name
+logger = logging.getLogger(LOGGER_NAME)
 
 
 class PTClassificationModel(PTModel):
@@ -54,27 +56,26 @@ class PTClassificationModel(PTModel):
         rsetattr(backbone, last_layer_name, head)
         return backbone
 
-    def create_model(self) -> nn.Module:
+    def create_model(self) -> Union[nn.Module, Callable]:
         """Create the model sequentially."""
 
-        self.backbone = self.create_backbone()
+        backbone = self.create_backbone()
 
         if self.adapter == "torchvision":
             last_layer_name, _, in_features = self.get_last_layer()
 
             # create and reset the classifier layer
             head = self.create_head(in_features)
-            rsetattr(self.backbone, last_layer_name, head)
+            rsetattr(backbone, last_layer_name, head)
 
         elif self.adapter == "timm":
-            self.backbone.reset_classifier(num_classes=self.model_config.num_classes)  # type: ignore
+            backbone.reset_classifier(num_classes=self.model_config.num_classes)
         else:
             raise ValueError(f"Adapter {self.adapter} not supported.")
 
-        model = self.backbone
-        return model
+        return backbone
 
-    def create_backbone(self) -> nn.Module:
+    def create_backbone(self) -> Union[nn.Module, Callable]:
         """Create the backbone of the model.
 
         NOTE:

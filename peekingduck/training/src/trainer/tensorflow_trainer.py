@@ -18,8 +18,8 @@ import logging
 from typing import Any, Dict, List, Optional, Union
 from omegaconf import DictConfig
 import tensorflow as tf
-from configs import LOGGER_NAME
 from tqdm.keras import TqdmCallback  # for progress bar
+from configs import LOGGER_NAME
 
 from src.data.data_adapter import DataAdapter
 from src.optimizers.adapter import OptimizersAdapter
@@ -31,10 +31,12 @@ from src.callbacks.tensorflow_callbacks import TensorFlowCallbacksAdapter
 from src.utils.general_utils import merge_dict_of_list
 from src.utils.tf_model_utils import set_trainable_layers, unfreeze_all_layers
 
-logger = logging.getLogger(LOGGER_NAME)  # pylint: disable=invalid-name
+# pylint:disable=too-many-instance-attributes,too-many-arguments
+# pylint:disable=logging-fstring-interpolation,invalid-name,attribute-defined-outside-init
+logger = logging.getLogger(LOGGER_NAME)
 
 
-class TensorflowTrainer:  # pylint: disable=too-many-instance-attributes, too-many-arguments
+class TensorflowTrainer:
     """Trainer class to facilitate tensorflow training."""
 
     def __init__(self, framework: str = "tensorflow") -> None:
@@ -76,7 +78,7 @@ class TensorflowTrainer:  # pylint: disable=too-many-instance-attributes, too-ma
                 self.trainer_config.lr_schedule_params.schedule_params.learning_rate
             )
         else:
-            self.scheduler = OptimizerSchedules.get_scheduler(
+            self.scheduler = OptimizerSchedules.get_tensorflow_scheduler(
                 self.trainer_config.lr_schedule_params.schedule,
                 self.trainer_config.lr_schedule_params.schedule_params,
             )
@@ -121,6 +123,11 @@ class TensorflowTrainer:  # pylint: disable=too-many-instance-attributes, too-ma
         if self.train_params.debug:
             self.epochs = self.train_params.debug_epochs
 
+        # check for correct fine-tune setting before start training
+        assert isinstance(
+            self.model_config.fine_tune, bool
+        ), f"Unknown fine_tune setting '{self.model_config.fine_tune}'"
+
         feature_extraction_history = self.model.fit(
             train_dl,
             epochs=self.epochs,
@@ -128,10 +135,6 @@ class TensorflowTrainer:  # pylint: disable=too-many-instance-attributes, too-ma
             verbose=0,
             callbacks=self.callbacks,
         )
-
-        assert isinstance(
-            self.model_config.fine_tune, bool
-        ), f"Unknown fine_tune setting '{self.model_config.fine_tune}'"
 
         if not self.model_config.fine_tune:
             return feature_extraction_history.history

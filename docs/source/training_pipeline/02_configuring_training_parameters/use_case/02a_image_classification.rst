@@ -11,7 +11,7 @@
             display: inline-block;
             margin: 12px 6px;
             padding: 5px 11px;
-            background-color: #fff3cd;
+            background-color: #fff; /* #fff3cd */
             border: none;
             border-radius: 3px;
             color: black;
@@ -155,7 +155,7 @@ Refer to the following sections to learn about the detailed configurations for c
 Main Config
 ===========
 
-``peekingduck/training/configs/config.yaml``
+Config File : ``peekingduck/training/configs/config.yaml``
 
 .. raw:: html
 
@@ -218,82 +218,82 @@ Main Config
                 </tr>
                 <tr>
                     <td><p></p></td>
-                    <td colspan="2"><code class="xref"><span class="pre">model</span></code></td>
-                    <td><p>${use_case}</p></td>
+                    <td colspan="2"><code><span class="pre grey">model</span></code></td>
+                    <td><p class="grey">${use_case}</p></td>
                     <td><p></p></td>
                 </tr>
                 <tr>
                     <td><p></p></td>
-                    <td colspan="2"><code class="xref"><span class="pre">trainer</span></code></td>
-                    <td><p>${use_case}</p></td>
+                    <td colspan="2"><code><span class="pre grey">trainer</span></code></td>
+                    <td><p class="grey">${use_case}</p></td>
                     <td><p></p></td>
                 </tr>
                 <tr>
                     <td><p></p></td>
-                    <td colspan="2"><code class="xref"><span class="pre">callbacks</span></code></td>
-                    <td><p>${use_case}</p></td>
+                    <td colspan="2"><code><span class="pre grey">callbacks</span></code></td>
+                    <td><p class="grey">${use_case}</p></td>
                     <td><p></p></td>
                 </tr>
                 <tr>
                     <td><p></p></td>
-                    <td colspan="2"><code class="xref"><span class="pre">metrics</span></code></td>
-                    <td><p>${use_case}</p></td>
+                    <td colspan="2"><code><span class="pre grey">metrics</span></code></td>
+                    <td><p class="grey">${use_case}</p></td>
                     <td><p></p></td>
                 </tr>
                 <tr>
                     <td><p></p></td>
-                    <td colspan="2"><code class="xref"><span class="pre">model_analysis</span></code></td>
-                    <td><p>${use_case}</p></td>
+                    <td colspan="2"><code><span class="pre grey">model_analysis</span></code></td>
+                    <td><p class="grey">${use_case}</p></td>
                     <td><p></p></td>
                 </tr>
                 <tr>
                     <td><p></p></td>
-                    <td colspan="2"><code class="xref"><span class="pre">stores</span></code></td>
-                    <td><p>${use_case}</p></td>
+                    <td colspan="2"><code><span class="pre grey">stores</span></code></td>
+                    <td><p class="grey">${use_case}</p></td>
                     <td><p></p></td>
                 </tr>
                 <tr>
                     <td><p></p></td>
-                    <td colspan="2"><code class="xref"><span class="pre">override hydra/job_logging</span></code></td>
-                    <td><p>custom</p></td>
+                    <td colspan="2"><code><span class="pre grey">override hydra/job_logging</span></code></td>
+                    <td><p class="grey">custom</p></td>
                     <td><p></p></td>
                 </tr>
                 <tr>
-                    <td colspan="3"><code class="xref"><span class="pre">hydra</span></code></td>
-                    <td><p></p></td>
-                    <td><p></p></td>
-                </tr>
-                <tr>
-                    <td><p></p></td>
-                    <td colspan="2"><code class="xref"><span class="pre">run</span></code></td>
+                    <td colspan="3"><code><span class="pre grey">hydra</span></code></td>
                     <td><p></p></td>
                     <td><p></p></td>
                 </tr>
                 <tr>
                     <td><p></p></td>
-                    <td><p></p></td>
-                    <td><code class="xref"><span class="pre">dir</span></code></td>
-                    <td><p>"outputs/${project_name}/${stores.unique_id}"</p></td>
-                    <td><p></p></td>
-                </tr>
-                <tr>
-                    <td><p></p></td>
-                    <td colspan="2"><code class="xref"><span class="pre">sweep</span></code></td>
+                    <td colspan="2"><code><span class="pre grey">run</span></code></td>
                     <td><p></p></td>
                     <td><p></p></td>
                 </tr>
                 <tr>
                     <td><p></p></td>
                     <td><p></p></td>
-                    <td><code class="xref"><span class="pre">dir</span></code></td>
-                    <td><p>outputs/${project_name}/${stores.unique_id}</p></td>
+                    <td><code><span class="pre grey">dir</span></code></td>
+                    <td><p class="grey">"outputs/${project_name}/${stores.unique_id}"</p></td>
+                    <td><p></p></td>
+                </tr>
+                <tr>
+                    <td><p></p></td>
+                    <td colspan="2"><code><span class="pre grey">sweep</span></code></td>
+                    <td><p></p></td>
                     <td><p></p></td>
                 </tr>
                 <tr>
                     <td><p></p></td>
                     <td><p></p></td>
-                    <td><code class="xref"><span class="pre">subdir</span></code></td>
-                    <td><p>${hydra.job.num}</p></td>
+                    <td><code><span class="pre grey">dir</span></code></td>
+                    <td><p class="grey">outputs/${project_name}/${stores.unique_id}</p></td>
+                    <td><p></p></td>
+                </tr>
+                <tr>
+                    <td><p></p></td>
+                    <td><p></p></td>
+                    <td><code><span class="pre grey">subdir</span></code></td>
+                    <td><p class="grey">${hydra.job.num}</p></td>
                     <td><p></p></td>
                 </tr>
             </tbody>
@@ -301,19 +301,18 @@ Main Config
    </div>
 
 
-Data
-====
+Data Module
+===========
 
 
 .. raw:: html
 
-   <h4>Train Test Split</h4>
-
-``peekingduck/training/configs/data_module/resample/train_test_split.yaml``
-
-.. raw:: html
-
+   <h4>Resample / Train Test Split</h4>
    <p>Split arrays or matrices into random train and test subsets.</p>
+
+Config File : ``peekingduck/training/configs/data_module/resample/train_test_split.yaml``
+
+.. raw:: html
 
    <div class="wy-table-responsive">
         <table class="docutils align-default">
@@ -356,8 +355,8 @@ Data
                 </tr>
                 <tr>
                     <td><p></p></td>
-                    <td><code class="xref"><span class="pre">random_state</span></code></td>
-                    <td><p>${random_state}</p></td>
+                    <td><code><span class="pre grey">random_state</span></code></td>
+                    <td><p class="grey">${random_state}</p></td>
                     <td><p>Controls the shuffling applied to the data before applying the split. Pass an int for reproducible output across multiple function calls.</p></td>
                 </tr>
 
@@ -368,11 +367,11 @@ Data
 .. raw:: html
 
    <div class="install">
-     <strong>Framework</strong>
+     <strong>Select Framework : </strong>
      <button class="training-framework-btn training-framework-py active">Pytorch</button>
      <button class="training-framework-btn training-framework-tf">Tensorflow</button>
    </div>
-   <br><br>
+   <br>
 
 .. raw:: html
 
@@ -398,13 +397,16 @@ Data
 
    <h4>Default Datasets</h4>
 
-``peekingduck/training/configs/data_module/dataset/``
+Config File : ``peekingduck/training/configs/data_module/dataset/``
 
 .. tabs::
 
    .. tab:: Cifar10
 
-      https://www.cs.toronto.edu/~kriz/cifar.html. The CIFAR-10 dataset consists of 60000 32x32 colour images in 10 classes, with 6000 images per class. There are 50000 training images and 10000 test images. The dataset is divided into five training batches and one test batch, each with 10000 images. The test batch contains exactly 1000 randomly-selected images from each class. The training batches contain the remaining images in random order, but some training batches may contain more images from one class than another. Between them, the training batches contain exactly 5000 images from each class.
+      | https://www.cs.toronto.edu/~kriz/cifar.html. The CIFAR-10 dataset consists of 60000 32x32 colour images in 10 classes, with 6000 images per class. There are 50000 training images and 10000 test images. The dataset is divided into five training batches and one test batch, each with 10000 images. The test batch contains exactly 1000 randomly-selected images from each class. The training batches contain the remaining images in random order, but some training batches may contain more images from one class than another. Between them, the training batches contain exactly 5000 images from each class.
+
+      | You can download the dataset here : `dataset/cifar-10`_
+      | You can download the labels csv file here : `csv/cifar-10`_
 
       .. raw:: html
 
@@ -527,6 +529,10 @@ Data
    .. tab:: Vegfru
 
       Based on dataset from https://github.com/ustc-vim/vegfru. For the paper "VegFru: A Domain-Specific Dataset for Fine-grained Visual Categorization".
+
+      | You can download the dataset here : `dataset/vegfru5`_ | `dataset/vegfru15`_ | `dataset/vegfru25`_
+      | You can download the labels csv file here : `csv/vegfru5`_ | `csv/vegfru15`_ | `csv/vegfru25`_
+      
 
       .. raw:: html
 
@@ -681,6 +687,9 @@ Data
 
       https://www.kaggle.com/competitions/rsna-breast-cancer-detection/data. The goal of this dataset is to identify cases of breast cancer in mammograms from screening exams. It is important to identify cases of cancer for obvious reasons, but false positives also have downsides for patients. As millions of women get mammograms each year, a useful machine learning tool could help a great many people.
 
+      | You can download the dataset here : `dataset/rsna`_
+      | You can download the labels csv file here : `csv/rsna`_
+
       .. raw:: html
 
          <div class="wy-table-responsive">
@@ -735,7 +744,7 @@ Data
                     </tr>
                     <tr>
                         <td><code class="xref"><span class="pre">target_col_name</span></code></td>
-                        <td><p>"class_name" #class_name cancer</p></td>
+                        <td><p>"class_name"</p></td>
                         <td><p>csv file column name to target string.</p></td>
                     </tr>
                     <tr>
@@ -777,25 +786,38 @@ Data
 
 
 
+.. _`dataset/cifar-10`: https://www.cs.toronto.edu/~kriz/cifar.html#download
+.. _`csv/cifar-10`: <TODO: add link to csv file>
+
+.. _`dataset/vegfru5`: <TODO: add link to dataset>
+.. _`csv/vegfru5`: <TODO: add link to csv file>
+.. _`dataset/vegfru15`: <TODO: add link to dataset>
+.. _`csv/vegfru15`: <TODO: add link to csv file>
+.. _`dataset/vegfru25`: <TODO: add link to dataset>
+.. _`csv/vegfru25`: <TODO: add link to csv file>
+
+.. _`dataset/rsna`: <TODO: add link to dataset>
+.. _`csv/rsna`: <TODO: add link to csv file>
+
+
 Model
 =====
-
-``peekingduck/training/configs/model/classification.yaml``
 
 .. raw:: html
 
    <div class="install">
-     <strong>Framework</strong>
+     <strong>Select Framework : </strong>
      <button class="training-framework-btn training-framework-py active">Pytorch</button>
      <button class="training-framework-btn training-framework-tf">Tensorflow</button>
    </div>
-   <br><br>
+   <br>
 
 .. raw:: html
 
    <div class="install">
      <div class="pkd-expandable training-pytorch">
         <h4>Pytorch</h4>
+        <p>Config File : <code class="docutils literal notranslate"><span class="pre">peekingduck/training/configs/model/classification.yaml</span></code></p>
         <div class="wy-table-responsive">
             <table class="docutils align-default">
                 <thead>
@@ -812,17 +834,13 @@ Model
                         <td><p>
                             PeekingDuck supports pre-trained models from both <code>torchvision</code> and <code>timm</code> libraries.
                             <br>
-                            <br><code>torchvision</code> is well established with more flexibility for customization, whereas <code>timm</code> supports more pre-trained SOTA models and is easier to configure.
-                            <br>
-                            <br>There are pros and cons for each library, but it shouldn't affect the usability for PeekingDuck users.
-                            <br>
-                            <br>The user can evaluate both libraries to make a decision based on the actual model performances.
+                            <br>Refer to the FAQ section for choosing between the two adapters for pre-trained models
                             </p>
                         </td>
                     </tr>
                     <tr>
-                        <td colspan="2"><code class="xref"><span class="pre">task</span></code></td>
-                        <td><p>${use_case}</p></td>
+                        <td colspan="2"><code><span class="pre grey">task</span></code></td>
+                        <td><p class="grey">${use_case}</p></td>
                         <td>
                             Should not be changed. For hydra interpolation.
                         </td>
@@ -932,13 +950,13 @@ Model
                         </td>
                     </tr>
                     <tr>
-                        <td colspan="2"><code class="xref"><span class="pre">num_classes</span></code></td>
-                        <td><p>${data_module.dataset.num_classes}</p></td>
+                        <td colspan="2"><code><span class="pre grey">num_classes</span></code></td>
+                        <td><p class="grey">${data_module.dataset.num_classes}</p></td>
                         <td><p>Should not be changed. For hydra interpolation.</p></td>
                     </tr>
                     <tr>
-                        <td colspan="2"><code class="xref"><span class="pre">device</span></code></td>
-                        <td><p>${device}</p></td>
+                        <td colspan="2"><code><span class="pre grey">device</span></code></td>
+                        <td><p class="grey">${device}</p></td>
                         <td><p>Should not be changed. For hydra interpolation.</p></td>
                     </tr>
                 </tbody>
@@ -948,6 +966,7 @@ Model
      </div>
      <div class="pkd-expandable training-tensorflow">
         <h4>Tensorflow</h4>
+        <p>Config File : <code class="docutils literal notranslate"><span class="pre">peekingduck/training/configs/model/classification.yaml</span></code></p>
         <div class="wy-table-responsive">
             <table class="docutils align-default">
                 <thead>
@@ -959,8 +978,8 @@ Model
                 </thead>
                 <tbody>
                     <tr>
-                        <td><code class="xref"><span class="pre">task</span></code></td>
-                        <td><p>${use_case}</p></td>
+                        <td><code><span class="pre grey">task</span></code></td>
+                        <td><p class="grey">${use_case}</p></td>
                         <td>
                             <p>Should not be changed. For hydra interpolation.</p>
                         </td>
@@ -977,8 +996,8 @@ Model
                         </td>
                     </tr>
                     <tr>
-                        <td><code class="xref"><span class="pre">num_classes</span></code></td>
-                        <td><p>${data_module.dataset.num_classes}</p></td>
+                        <td><code><span class="pre grey">num_classes</span></code></td>
+                        <td><p class="grey">${data_module.dataset.num_classes}</p></td>
                         <td>
                             <p>Should not be changed. For hydra interpolation.</p>
                         </td>
@@ -991,15 +1010,15 @@ Model
                         </td>
                     </tr>
                     <tr>
-                        <td><code class="xref"><span class="pre">image_size</span></code></td>
-                        <td><p>${data_module.dataset.image_size}</p></td>
+                        <td><code><span class="pre grey">image_size</span></code></td>
+                        <td><p class="grey">${data_module.dataset.image_size}</p></td>
                         <td>
                             <p>Should not be changed. For hydra interpolation.</p>
                         </td>
                     </tr>
                     <tr>
-                        <td><code class="xref"><span class="pre">device</span></code></td>
-                        <td><p>${device}</p></td>
+                        <td><code><span class="pre grey">device</span></code></td>
+                        <td><p class="grey">${device}</p></td>
                         <td>
                             <p>Should not be changed. For hydra interpolation.</p>
                         </td>
@@ -1055,11 +1074,10 @@ Model
 Model Analysis
 ==============
 
-``peekingduck/training/configs/model_analysis/classification.yaml``
+Config File : ``peekingduck/training/configs/model_analysis/classification.yaml``
 
 .. raw:: html
 
-   <h4>Default Values</h4>
    <div class="wy-table-responsive">
         <table class="docutils align-default">
             <thead>
@@ -1076,23 +1094,23 @@ Model Analysis
                     <td><p></p></td>
                 </tr>
                 <tr>
-                    <td><code class="xref"><span class="pre">project</span></code></td>
-                    <td>"${project_name}"</td>
+                    <td><code><span class="pre grey">project</span></code></td>
+                    <td class="grey">"${project_name}"</td>
                     <td><p></p></td>
                 </tr>
                 <tr>
-                    <td><code class="xref"><span class="pre">run_name</span></code></td>
-                    <td>"${stores.unique_id}"</td>
+                    <td><code><span class="pre grey">run_name</span></code></td>
+                    <td class="grey">"${stores.unique_id}"</td>
                     <td><p></p></td>
                 </tr>
                 <tr>
-                    <td><code class="xref"><span class="pre">framework</span></code></td>
-                    <td>"${framework}"</td>
+                    <td><code><span class="pre grey">framework</span></code></td>
+                    <td class="grey">"${framework}"</td>
                     <td><p></p></td>
                 </tr>
                 <tr>
-                    <td><code class="xref"><span class="pre">debug</span></code></td>
-                    <td>${debug}</td>
+                    <td><code><span class="pre grey">debug</span></code></td>
+                    <td class="grey">${debug}</td>
                     <td><p></p></td>
                 </tr>
             </tbody>
@@ -1103,23 +1121,23 @@ Model Analysis
 Trainer
 =======
 
-``peekingduck/training/configs/trainer/classification.yaml``
-
 .. raw:: html
 
    <div class="install">
-     <strong>Framework</strong>
+     <strong>Select Framework : </strong>
      <button class="training-framework-btn training-framework-py active">Pytorch</button>
      <button class="training-framework-btn training-framework-tf">Tensorflow</button>
    </div>
-   <br><br>
-   <p>The trainer class will make use of these configs.</p>
+   <br>
+   
 
 .. raw:: html
 
    <div class="install">
       <div class="pkd-expandable training-pytorch">
         <h4>Pytorch</h4>
+        <p>The trainer class will make use of these configs.</p>
+        <p>Config File : <code class="docutils literal notranslate"><span class="pre">peekingduck/training/configs/trainer/classification.yaml</span></code></p>
 
 .. include:: /training_pipeline/02_configuring_training_parameters/trainer/pytorch_config.rst
 
@@ -1128,6 +1146,8 @@ Trainer
    </div>
       <div class="pkd-expandable training-tensorflow">
         <h4>Tensorflow</h4>
+        <p>The trainer class will make use of these configs.</p>
+        <p>Config File : <code class="docutils literal notranslate"><span class="pre">peekingduck/training/configs/trainer/classification.yaml</span></code></p>
 
 .. include:: /training_pipeline/02_configuring_training_parameters/trainer/tensorflow_config.rst
 
@@ -1140,23 +1160,20 @@ Trainer
 Metrics
 =======
 
-``peekingduck/training/configs/metrics/classification.yaml``
-
 .. raw:: html
 
    <div class="install">
-     <strong>Framework</strong>
+     <strong>Select Framework : </strong>
      <button class="training-framework-btn training-framework-py active">Pytorch</button>
      <button class="training-framework-btn training-framework-tf">Tensorflow</button>
    </div>
-   <br><br>
+   <br>
 
 .. raw:: html
 
    <div class="install">
      <div class="pkd-expandable training-pytorch">
         <h4>Pytorch</h4>
-        <p></p>
         <p>Refer to <a href="https://torchmetrics.readthedocs.io/en/stable/all-metrics.html">Torch Metrics</a> documentation for more metrics you can use and their details.</p>
         <p>These are the default values:
         <ul>
@@ -1166,7 +1183,8 @@ Metrics
             <li>AUROC</li>
         </ul>
         </p>
-        <p>The table below shows the default Descriptionvalues:</p>
+        <p>The table below shows the default values:</p>
+        <p>Config file : <code class="docutils literal notranslate"><span class="pre">peekingduck/training/configs/metrics/classification.yaml</span></code></p>
         <div class="wy-table-responsive">
             <table class="docutils align-default">
                 <thead>
@@ -1252,7 +1270,8 @@ Metrics
             <li>AUC</li>
         </ul>
         </p>
-        <p>The table below shows the default values:</p>        
+        <p>The table below shows the default values:</p>
+        <p>Config file : <code class="docutils literal notranslate"><span class="pre">peekingduck/training/configs/metrics/classification.yaml</span></code></p>
         <div class="wy-table-responsive">
             <table class="docutils align-default">
                 <thead>
@@ -1310,7 +1329,7 @@ Metrics
                     <tr>
                         <td><p></p></td>
                         <td><code class="xref"><span class="pre">num_labels</span></code></td>
-                        <td>${data_module.dataset.num_classes}</td>
+                        <td class="grey">${data_module.dataset.num_classes}</td>
                         <td>(Optional) The number of labels, used when multi_label is True. If num_labels is not specified, then state variables get created on the first call to update_state.</td>
                     </tr>
                 </tbody>
@@ -1324,16 +1343,14 @@ Metrics
 Callbacks
 =========
 
-``peekingduck/training/configs/callbacks/classification.yaml``
-
 .. raw:: html
 
    <div class="install">
-     <strong>Framework</strong>
+     <strong>Select Framework : </strong>
      <button class="training-framework-btn training-framework-py active">Pytorch</button>
      <button class="training-framework-btn training-framework-tf">Tensorflow</button>
    </div>
-   <br><br>
+   <br>
 
 .. raw:: html
 
@@ -1350,6 +1367,7 @@ Callbacks
         </ol>
         </p>
         <p>The table below shows the default values:</p>
+        <p>Config File : <code class="docutils literal notranslate"><span class="pre">peekingduck/training/configs/callbacks/classification.yaml</span></code></p>
         <div class="wy-table-responsive">
             <table class="docutils align-default">
                 <thead>
@@ -1372,20 +1390,20 @@ Callbacks
                     </tr>
                     <tr class="row-even">
                         <td><p></p></td>
-                        <td><code class="xref"><span class="pre">patience</span></code></td>
-                        <td>${trainer.pytorch.global_train_params.patience}</td>
+                        <td><code><span class="pre grey">patience</span></code></td>
+                        <td class="grey">${trainer.pytorch.global_train_params.patience}</td>
                         <td>Number of epochs with no improvement after which training will be stopped.</td>
                     </tr>
                     <tr class="row-odd">
                         <td><p></p></td>
-                        <td><code class="xref"><span class="pre">monitor</span></code></td>
-                        <td>${trainer.pytorch.global_train_params.monitored_metric.monitor}</td>
+                        <td><code><span class="pre grey">monitor</span></code></td>
+                        <td class="grey">${trainer.pytorch.global_train_params.monitored_metric.monitor}</td>
                         <td>Name of the metric to monitor, should be one of the keys in metrics list.</td>
                     </tr>
                     <tr class="row-even">
                         <td><p></p></td>
-                        <td><code class="xref"><span class="pre">mode</span></code></td>
-                        <td>${trainer.pytorch.global_train_params.monitored_metric.mode}</td>
+                        <td><code><span class="pre grey">mode</span></code></td>
+                        <td class="grey">${trainer.pytorch.global_train_params.monitored_metric.mode}</td>
                         <td>"min" or "max"
                         <br><br>In min mode, training will stop when the quantity monitored has stopped decreasing.
                         <br>In "max" mode it will stop when the quantity monitored has stopped increasing.</td>
@@ -1418,14 +1436,14 @@ Callbacks
                     </tr>
                     <tr class="row-even">
                         <td><p></p></td>
-                        <td><code class="xref"><span class="pre">monitor</span></code></td>
-                        <td>${trainer.pytorch.global_train_params.monitored_metric.monitor}</td>
+                        <td><code><span class="pre grey">monitor</span></code></td>
+                        <td class="grey">${trainer.pytorch.global_train_params.monitored_metric.monitor}</td>
                         <td>Name of the metric to monitor, should be one of the keys in metrics list.</td>
                     </tr>
                     <tr class="row-odd">
                         <td><p></p></td>
-                        <td><code class="xref"><span class="pre">mode</span></code></td>
-                        <td>${trainer.pytorch.global_train_params.monitored_metric.mode}</td>
+                        <td><code><span class="pre grey">mode</span></code></td>
+                        <td class="grey">${trainer.pytorch.global_train_params.monitored_metric.mode}</td>
                         <td>
                             "max" or "min"<br>
                             <br>In "min" mode, training will stop when the quantity monitored has stopped decreasing
@@ -1442,6 +1460,7 @@ Callbacks
         <p>Check out the <a href="https://www.tensorflow.org/api_docs/python/tf/keras/callbacks">TensorFlow v2 Callbacks</a> documentation for more details.
         <br>While technically you can use any callbacks listed in the keras API, only EarlyStopping has been tested.</p>
         <p>The table below shows the default values:</p>
+        <p>Config File : <code class="docutils literal notranslate"><span class="pre">peekingduck/training/configs/callbacks/classification.yaml</span></code></p>
         <div class="wy-table-responsive">
             <table class="docutils align-default">
                 <thead>
@@ -1486,7 +1505,7 @@ Callbacks
 Store
 =====
 
-``peekingduck/training/configs/stores/classifications.yaml``
+Config File : ``peekingduck/training/configs/stores/classifications.yaml``
 
 .. raw:: html
 
@@ -1501,8 +1520,8 @@ Store
             </thead>
             <tbody>
                 <tr class="row-even">
-                    <td><code class="xref"><span class="pre">unique_id</span></code></td>
-                    <td><p>${now:%Y%m%d_%H%M%S}</p></td>
+                    <td><code><span class="pre grey">unique_id</span></code></td>
+                    <td><p class="grey">${now:%Y%m%d_%H%M%S}</p></td>
                     <td>Used in:<ul>
                         <li>- Hydra run and sweep directory path</li>
                         <li>- Model analysis run_name</li>
