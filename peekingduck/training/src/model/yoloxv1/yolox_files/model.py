@@ -41,7 +41,8 @@ Modifications include:
         - get_output_and_grid() and initialize_biases() methods
 """
 
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple, Union
+import math
 
 import torch
 from torch import nn
@@ -76,7 +77,9 @@ class YOLOX(nn.Module):
         self.head = YOLOXHead(num_classes, width)
         self.apply(YOLOX.initialize_batch_norm)
 
-    def forward(self, inputs: torch.Tensor, targets=None) -> torch.Tensor:
+    def forward(
+        self, inputs: torch.Tensor, targets: Optional[torch.Tensor] = None
+    ) -> Union[dict, torch.Tensor]:
         """Defines the computation performed at every call.
 
         Args:
@@ -266,6 +269,17 @@ class YOLOXHead(nn.Module):  # pylint: disable=too-many-instance-attributes
             BaseConv(in_channels, in_channels, 3, 1),
             BaseConv(in_channels, in_channels, 3, 1),
         )
+
+    def initialize_biases(self, prior_prob):
+        for conv in self.cls_preds:
+            b = conv.bias.view(1, -1)
+            b.data.fill_(-math.log((1 - prior_prob) / prior_prob))
+            conv.bias = torch.nn.Parameter(b.view(-1), requires_grad=True)
+
+        for conv in self.obj_preds:
+            b = conv.bias.view(1, -1)
+            b.data.fill_(-math.log((1 - prior_prob) / prior_prob))
+            conv.bias = torch.nn.Parameter(b.view(-1), requires_grad=True)
 
     def forward(
         self,

@@ -14,6 +14,7 @@ pytorch:
         pre_logits: ["fc1", "act1", "drop", "fc2", "act2"]
     model_type:
         _target_: src.model.pytorch_model.PTClassificationModel
+    image_size: ${data_module.dataset.image_size}
     num_classes: ${data_module.dataset.num_classes}
     device: ${device}
 

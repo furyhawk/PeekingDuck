@@ -24,6 +24,7 @@ from torch import nn
 from omegaconf import DictConfig
 
 from src.model.pytorch_base import PTModel
+from src.model.yoloxv1.yolox_files.model import YOLOX
 from src.utils.general_utils import rsetattr
 from src.utils.pt_model_utils import freeze_all_params
 from configs import LOGGER_NAME
@@ -102,6 +103,51 @@ class PTClassificationModel(PTModel):
         out_features = self.model_config.num_classes
         head = nn.Linear(in_features=in_features, out_features=out_features)
         return head
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        """Forward pass of the model based on the adapter"""
+        outputs = self.model(inputs)
+
+        return outputs
+
+
+class PTObjectDetectionModel(PTModel):
+    """A generic image classification model. This is generic in the sense that
+    it can be used for any image classification by just modifying the head.
+    """
+
+    def __init__(self, cfg: DictConfig) -> None:
+        super().__init__(cfg)
+
+        self.adapter = self.model_config.adapter
+        self.model_name = self.model_config.model_name
+        self.pretrained = self.model_config.pretrained
+        self.weights = self.model_config.weights
+        self.model = self.create_model()
+
+        logger.info(f"Successfully created model: {self.model_config.model_name}")
+
+    def create_model(self) -> Union[nn.Module, Callable]:
+        """Create the model sequentially."""
+
+        def init_yolo(M):
+            for m in M.modules():
+                if isinstance(m, nn.BatchNorm2d):
+                    m.eps = 1e-3
+                    m.momentum = 0.03
+
+        if getattr(self, "model", None) is None:
+            self.model = YOLOX(
+                self.model_config.num_classes,
+                self.model_config.image_size,
+                self.model_config.image_size,
+            )
+
+        self.model.apply(init_yolo)
+        self.model.head.initialize_biases(1e-2)  # type: ignore
+        self.model.train()
+
+        return self.model
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         """Forward pass of the model based on the adapter"""
