@@ -29,7 +29,7 @@ from src.model.yolox_megvii.utils import (
     occupy_mem,
     save_checkpoint,
     setup_logger,
-    synchronize
+    synchronize,
 )
 
 
@@ -43,11 +43,11 @@ class Trainer:
         # training related attr
         self.max_epoch = exp.max_epoch
         self.amp_training = args.fp16
-        self.scaler = None # torch.cuda.amp.GradScaler(enabled=args.fp16)
+        self.scaler = None  # torch.cuda.amp.GradScaler(enabled=args.fp16)
         self.is_distributed = get_world_size() > 1
         self.rank = get_rank()
         self.local_rank = get_local_rank()
-        self.device = "cpu" # "cuda:{}".format(self.local_rank)
+        self.device = "cpu"  # "cuda:{}".format(self.local_rank)
         self.use_model_ema = exp.ema
         self.save_history_ckpt = exp.save_history_ckpt
 
@@ -178,12 +178,12 @@ class Trainer:
         # Tensorboard and Wandb loggers
         if self.rank == 0:
             if self.args.logger == "tensorboard":
-                self.tblogger = SummaryWriter(os.path.join(self.file_name, "tensorboard"))
+                self.tblogger = SummaryWriter(
+                    os.path.join(self.file_name, "tensorboard")
+                )
             elif self.args.logger == "wandb":
                 self.wandb_logger = WandbLogger.initialize_wandb_logger(
-                    self.args,
-                    self.exp,
-                    self.evaluator.dataloader.dataset
+                    self.args, self.exp, self.evaluator.dataloader.dataset
                 )
             else:
                 raise ValueError("logger must be either 'tensorboard' or 'wandb'")
@@ -193,7 +193,9 @@ class Trainer:
 
     def after_train(self):
         logger.info(
-            "Training of experiment is done and the best AP is {:.2f}".format(self.best_ap * 100)
+            "Training of experiment is done and the best AP is {:.2f}".format(
+                self.best_ap * 100
+            )
         )
         if self.rank == 0:
             if self.args.logger == "wandb":
@@ -250,7 +252,9 @@ class Trainer:
                 ["{}: {:.3f}s".format(k, v.avg) for k, v in time_meter.items()]
             )
 
-            mem_str = "gpu mem: {:.0f}Mb, mem: {:.1f}Gb".format(gpu_mem_usage(), mem_usage())
+            mem_str = "gpu mem: {:.0f}Mb, mem: {:.1f}Gb".format(
+                gpu_mem_usage(), mem_usage()
+            )
 
             logger.info(
                 "{}, {}, {}, {}, lr: {:.3e}".format(
@@ -266,9 +270,7 @@ class Trainer:
             if self.rank == 0:
                 if self.args.logger == "wandb":
                     metrics = {"train/" + k: v.latest for k, v in loss_meter.items()}
-                    metrics.update({
-                        "train/lr": self.meter["lr"].latest
-                    })
+                    metrics.update({"train/lr": self.meter["lr"].latest})
                     self.wandb_logger.log_metrics(metrics, step=self.progress_in_iter)
 
             self.meter.clear_meters()
@@ -339,11 +341,13 @@ class Trainer:
                 self.tblogger.add_scalar("val/COCOAP50", ap50, self.epoch + 1)
                 self.tblogger.add_scalar("val/COCOAP50_95", ap50_95, self.epoch + 1)
             if self.args.logger == "wandb":
-                self.wandb_logger.log_metrics({
-                    "val/COCOAP50": ap50,
-                    "val/COCOAP50_95": ap50_95,
-                    "train/epoch": self.epoch + 1,
-                })
+                self.wandb_logger.log_metrics(
+                    {
+                        "val/COCOAP50": ap50,
+                        "val/COCOAP50_95": ap50_95,
+                        "train/epoch": self.epoch + 1,
+                    }
+                )
                 self.wandb_logger.log_images(predictions)
             logger.info("\n" + summary)
         synchronize()
@@ -379,6 +383,6 @@ class Trainer:
                         "epoch": self.epoch + 1,
                         "optimizer": self.optimizer.state_dict(),
                         "best_ap": self.best_ap,
-                        "curr_ap": ap
-                    }
+                        "curr_ap": ap,
+                    },
                 )

@@ -14,7 +14,7 @@ __all__ = [
     "yolox_l",
     "yolox_x",
     "yolov3",
-    "yolox_custom"
+    "yolox_custom",
 ]
 
 _CKPT_ROOT_URL = "https://github.com/Megvii-BaseDetection/YOLOX/releases/download"
@@ -29,8 +29,14 @@ _CKPT_FULL_PATH = {
 }
 
 
-def create_yolox_model(name: str, pretrained: bool = True, num_classes: int = 80, device=None,
-                       exp_path: str = None, ckpt_path: str = None) -> nn.Module:
+def create_yolox_model(
+    name: str,
+    pretrained: bool = True,
+    num_classes: int = 80,
+    device=None,
+    exp_path: str = None,
+    ckpt_path: str = None,
+) -> nn.Module:
     """creates and loads a YOLOX model
 
     Args:
@@ -53,8 +59,9 @@ def create_yolox_model(name: str, pretrained: bool = True, num_classes: int = 80
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
     device = torch.device(device)
 
-    assert name in _CKPT_FULL_PATH or name == "yolox_custom", \
-        f"user should use one of value in {_CKPT_FULL_PATH.keys()} or \"yolox_custom\""
+    assert (
+        name in _CKPT_FULL_PATH or name == "yolox_custom"
+    ), f'user should use one of value in {_CKPT_FULL_PATH.keys()} or "yolox_custom"'
     if name in _CKPT_FULL_PATH:
         exp: Exp = get_exp(exp_name=name)
         exp.num_classes = num_classes
@@ -66,7 +73,9 @@ def create_yolox_model(name: str, pretrained: bool = True, num_classes: int = 80
                 ckpt = ckpt["model"]
             yolox_model.load_state_dict(ckpt)
     else:
-        assert exp_path is not None, "for a \"yolox_custom\" model exp_path must be provided"
+        assert (
+            exp_path is not None
+        ), 'for a "yolox_custom" model exp_path must be provided'
         exp: Exp = get_exp(exp_file=exp_path)
         yolox_model = exp.get_model()
         if ckpt_path:
@@ -79,33 +88,51 @@ def create_yolox_model(name: str, pretrained: bool = True, num_classes: int = 80
     return yolox_model
 
 
-def yolox_nano(pretrained: bool = True, num_classes: int = 80, device: str = None) -> nn.Module:
+def yolox_nano(
+    pretrained: bool = True, num_classes: int = 80, device: str = None
+) -> nn.Module:
     return create_yolox_model("yolox-nano", pretrained, num_classes, device)
 
 
-def yolox_tiny(pretrained: bool = True, num_classes: int = 80, device: str = None) -> nn.Module:
+def yolox_tiny(
+    pretrained: bool = True, num_classes: int = 80, device: str = None
+) -> nn.Module:
     return create_yolox_model("yolox-tiny", pretrained, num_classes, device)
 
 
-def yolox_s(pretrained: bool = True, num_classes: int = 80, device: str = None) -> nn.Module:
+def yolox_s(
+    pretrained: bool = True, num_classes: int = 80, device: str = None
+) -> nn.Module:
     return create_yolox_model("yolox-s", pretrained, num_classes, device)
 
 
-def yolox_m(pretrained: bool = True, num_classes: int = 80, device: str = None) -> nn.Module:
+def yolox_m(
+    pretrained: bool = True, num_classes: int = 80, device: str = None
+) -> nn.Module:
     return create_yolox_model("yolox-m", pretrained, num_classes, device)
 
 
-def yolox_l(pretrained: bool = True, num_classes: int = 80, device: str = None) -> nn.Module:
+def yolox_l(
+    pretrained: bool = True, num_classes: int = 80, device: str = None
+) -> nn.Module:
     return create_yolox_model("yolox-l", pretrained, num_classes, device)
 
 
-def yolox_x(pretrained: bool = True, num_classes: int = 80, device: str = None) -> nn.Module:
+def yolox_x(
+    pretrained: bool = True, num_classes: int = 80, device: str = None
+) -> nn.Module:
     return create_yolox_model("yolox-x", pretrained, num_classes, device)
 
 
-def yolov3(pretrained: bool = True, num_classes: int = 80, device: str = None) -> nn.Module:
+def yolov3(
+    pretrained: bool = True, num_classes: int = 80, device: str = None
+) -> nn.Module:
     return create_yolox_model("yolov3", pretrained, num_classes, device)
 
 
-def yolox_custom(ckpt_path: str = None, exp_path: str = None, device: str = None) -> nn.Module:
-    return create_yolox_model("yolox_custom", ckpt_path=ckpt_path, exp_path=exp_path, device=device)
+def yolox_custom(
+    ckpt_path: str = None, exp_path: str = None, device: str = None
+) -> nn.Module:
+    return create_yolox_model(
+        "yolox_custom", ckpt_path=ckpt_path, exp_path=exp_path, device=device
+    )

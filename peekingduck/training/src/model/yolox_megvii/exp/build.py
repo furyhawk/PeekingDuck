@@ -5,7 +5,9 @@
 import importlib
 import os
 import sys
-sys.path.append('/Users/sabrimansor/Desktop/CVHUB/Training Pipeline/POC/YOLOX')
+
+sys.path.append("/Users/sabrimansor/Desktop/CVHUB/Training Pipeline/POC/YOLOX")
+
 
 def get_exp_by_file(exp_file):
     try:

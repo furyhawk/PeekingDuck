@@ -119,8 +119,12 @@ class Exp(BaseExp):
 
         if getattr(self, "model", None) is None:
             in_channels = [256, 512, 1024]
-            backbone = YOLOPAFPN(self.depth, self.width, in_channels=in_channels, act=self.act)
-            head = YOLOXHead(self.num_classes, self.width, in_channels=in_channels, act=self.act)
+            backbone = YOLOPAFPN(
+                self.depth, self.width, in_channels=in_channels, act=self.act
+            )
+            head = YOLOXHead(
+                self.num_classes, self.width, in_channels=in_channels, act=self.act
+            )
             self.model = YOLOX(backbone, head)
 
         self.model.apply(init_yolo)
@@ -144,15 +148,15 @@ class Exp(BaseExp):
             json_file=self.train_ann,
             img_size=self.input_size,
             preproc=TrainTransform(
-                max_labels=50,
-                flip_prob=self.flip_prob,
-                hsv_prob=self.hsv_prob
+                max_labels=50, flip_prob=self.flip_prob, hsv_prob=self.hsv_prob
             ),
             cache=cache,
             cache_type=cache_type,
         )
 
-    def get_data_loader(self, batch_size, is_distributed, no_aug=False, cache_img: str = None):
+    def get_data_loader(
+        self, batch_size, is_distributed, no_aug=False, cache_img: str = None
+    ):
         """
         Get dataloader according to cache_img parameter.
         Args:
@@ -176,8 +180,9 @@ class Exp(BaseExp):
         # else we will create self.dataset after launch
         if self.dataset is None:
             with wait_for_the_master():
-                assert cache_img is None, \
-                    "cache_img must be None if you didn't create self.dataset before launch"
+                assert (
+                    cache_img is None
+                ), "cache_img must be None if you didn't create self.dataset before launch"
                 self.dataset = self.get_dataset(cache=False, cache_type=cache_img)
 
         self.dataset = MosaicDetection(
@@ -185,9 +190,8 @@ class Exp(BaseExp):
             mosaic=not no_aug,
             img_size=self.input_size,
             preproc=TrainTransform(
-                max_labels=120,
-                flip_prob=self.flip_prob,
-                hsv_prob=self.hsv_prob),
+                max_labels=120, flip_prob=self.flip_prob, hsv_prob=self.hsv_prob
+            ),
             degrees=self.degrees,
             translate=self.translate,
             mosaic_scale=self.mosaic_scale,
@@ -222,11 +226,11 @@ class Exp(BaseExp):
         return train_loader
 
     def random_resize(self, data_loader, epoch, rank, is_distributed):
-        tensor = torch.LongTensor(2) # .cuda()
+        tensor = torch.LongTensor(2)  # .cuda()
 
         if rank == 0:
             size_factor = self.input_size[1] * 1.0 / self.input_size[0]
-            if not hasattr(self, 'random_size'):
+            if not hasattr(self, "random_size"):
                 min_size = int(self.input_size[0] / 32) - self.multiscale_range
                 max_size = int(self.input_size[0] / 32) + self.multiscale_range
                 self.random_size = (min_size, max_size)
@@ -298,6 +302,7 @@ class Exp(BaseExp):
 
     def get_eval_dataset(self, **kwargs):
         from src.model.yolox_megvii.data import COCODataset, ValTransform
+
         testdev = kwargs.get("testdev", False)
         legacy = kwargs.get("legacy", False)
 
@@ -334,8 +339,9 @@ class Exp(BaseExp):
         from src.model.yolox_megvii.evaluators import COCOEvaluator
 
         return COCOEvaluator(
-            dataloader=self.get_eval_loader(batch_size, is_distributed,
-                                            testdev=testdev, legacy=legacy),
+            dataloader=self.get_eval_loader(
+                batch_size, is_distributed, testdev=testdev, legacy=legacy
+            ),
             img_size=self.test_size,
             confthre=self.test_conf,
             nmsthre=self.nmsthre,
@@ -345,12 +351,15 @@ class Exp(BaseExp):
 
     def get_trainer(self, args):
         from src.model.yolox_megvii.core import Trainer
+
         trainer = Trainer(self, args)
         # NOTE: trainer shouldn't be an attribute of exp object
         return trainer
 
     def eval(self, model, evaluator, is_distributed, half=False, return_outputs=False):
-        return evaluator.evaluate(model, is_distributed, half, return_outputs=return_outputs)
+        return evaluator.evaluate(
+            model, is_distributed, half, return_outputs=return_outputs
+        )
 
 
 def check_exp_value(exp: Exp):
