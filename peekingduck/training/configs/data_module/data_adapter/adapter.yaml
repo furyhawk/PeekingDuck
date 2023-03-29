@@ -2,7 +2,7 @@ pytorch:
   adapter_type: "pytorch"
 
   train:
-    batch_size: 32
+    batch_size: 1
     shuffle: True
     pin_memory: True
     drop_last: False
