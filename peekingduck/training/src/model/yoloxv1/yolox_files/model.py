@@ -558,3 +558,23 @@ class YOLOXHead(nn.Module):  # pylint: disable=too-many-instance-attributes
             loss_l1,
             num_fg / max(num_gts, 1),
         )
+
+    def get_output_and_grid(self, output, k, stride, dtype):
+        grid = self.grids[k]
+
+        batch_size = output.shape[0]
+        n_ch = 5 + self.num_classes
+        hsize, wsize = output.shape[-2:]
+        if grid.shape[2:4] != output.shape[2:4]:
+            yv, xv = meshgrid([torch.arange(hsize), torch.arange(wsize)])
+            grid = torch.stack((xv, yv), 2).view(1, 1, hsize, wsize, 2).type(dtype)
+            self.grids[k] = grid
+
+        output = output.view(batch_size, 1, n_ch, hsize, wsize)
+        output = output.permute(0, 1, 3, 4, 2).reshape(
+            batch_size, hsize * wsize, -1
+        )
+        grid = grid.view(1, -1, 2)
+        output[..., :2] = (output[..., :2] + grid) * stride
+        output[..., 2:4] = torch.exp(output[..., 2:4]) * stride
+        return output, grid
