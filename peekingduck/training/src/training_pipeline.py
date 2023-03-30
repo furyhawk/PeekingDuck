@@ -29,7 +29,7 @@ def run(cfg: DictConfig) -> None:
 
     elif cfg.use_case_testing == "detection":
         from src.use_case.detection_pipeline import run_detection
-        run_detection(cfg)
+        run_detection(cfg.trainer.yolox)
 
     # elif cfg.use_case_testing == "segmentation":
         # from src.use_case.segmentation_pipeline import run_segmentation

@@ -15,50 +15,181 @@
 """Detection Trainer Pipeline"""
 
 import os
-
-
-def run_detection(cfg):
-
-    import argparse
-
-    exp = Exp()
-
-    kwargs = {}
-    kwargs["batch_size"] = 64
-    kwargs["resume"] = False
-    kwargs["ckpt"] = "peekingduck/training/weights/yolox_s.pth"
-    kwargs["fp16"] = None
-    kwargs["occupy"] = False
-    kwargs["name"] = "yolox_s"
-    kwargs["experiment_name"] = "fashion_dataset"
-    kwargs["cache"] = None
-    kwargs["logger"] = "tensorboard"
-    print(kwargs)
-    args = argparse.Namespace(**kwargs)
-    trainer = exp.get_trainer(args)
-    trainer.train()
-
+import argparse
 
 from src.model.yolox_megvii.data import get_yolox_datadir
 from src.model.yolox_megvii.exp import Exp as MyExp
 
 
-class Exp(MyExp):
-    def __init__(self):
-        super(Exp, self).__init__()
-        self.num_classes = 11
-        self.max_epoch = 3
-        self.depth = 0.33
-        self.width = 0.50
-        self.warmup_epochs = 1
 
-        # ---------- transform config ------------ #
-        self.mosaic_prob = 1.0
-        self.mixup_prob = 1.0
-        self.hsv_prob = 1.0
-        self.flip_prob = 0.5
+def run_detection(cfg):
 
-        self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
+    assert cfg.trainer_params.ds_format in [
+        "coco",
+        "voc",
+    ], f"Unsupported format {cfg.trainer_params.ds_format}"
+
+    if cfg.trainer_params.ds_format == "coco":
+        exp = COCO_Exp(cfg.trainer_params.coco)
+    if cfg.trainer_params.ds_format == "voc":
+        exp = VOC_Exp(cfg.trainer_params.voc)
+
+    # print(cfg)
+    args = argparse.Namespace(**cfg)
+    trainer = exp.get_trainer(args)
+    trainer.train()
+
+
+class COCO_Exp(MyExp):
+    def __init__(self, cfg):
+        super(MyExp, self).__init__()
+        self.seed = cfg.seed
+        self.output_dir = cfg.output_dir
+        self.print_interval = cfg.print_interval
+        self.eval_interval = cfg.eval_interval
+        self.dataset = cfg.dataset
+        self.num_classes = cfg.num_classes
+        self.depth = cfg.depth
+        self.width = cfg.width
+        self.act = cfg.act
+        self.data_num_workers = cfg.data_num_workers
+        self.input_size = cfg.input_size
+        self.multiscale_range = cfg.multiscale_range
+        self.data_dir = cfg.data_dir
+        self.train_ann = cfg.train_ann
+        self.val_ann = cfg.val_ann
+        self.test_ann = cfg.test_ann
+        self.mosaic_prob = cfg.mosaic_prob
+        self.mixup_prob = cfg.mixup_prob
+        self.hsv_prob = cfg.hsv_prob
+        self.flip_prob = cfg.flip_prob
+        self.degrees = cfg.degrees
+        self.translate = cfg.translate
+        self.mosaic_scale = cfg.mosaic_scale
+        self.enable_mixup = cfg.enable_mixup
+        self.mixup_scale = cfg.mixup_scale
+        self.shear = cfg.shear
+        self.warmup_epochs = cfg.warmup_epochs
+        self.max_epoch = cfg.max_epoch
+        self.warmup_lr = cfg.warmup_lr
+        self.min_lr_ratio = cfg.min_lr_ratio
+        self.basic_lr_per_img = cfg.basic_lr_per_img
+        self.scheduler = cfg.scheduler
+        self.no_aug_epochs = cfg.no_aug_epochs
+        self.ema = cfg.ema
+        self.weight_decay = cfg.weight_decay
+        self.momentum = cfg.momentum
+        self.save_history_ckpt = cfg.save_history_ckpt
+        self.exp_name = cfg.exp_name
+        self.test_size = cfg.test_size
+        self.test_conf = cfg.test_conf
+        self.nmsthre = cfg.nmsthre
+
+
+    def get_dataset(self, cache: bool = False, cache_type: str = "ram"):
+        """
+        Get dataset according to cache and cache_type parameters.
+        Args:
+            cache (bool): Whether to cache imgs to ram or disk.
+            cache_type (str, optional): Defaults to "ram".
+                "ram" : Caching imgs to ram for fast training.
+                "disk": Caching imgs to disk for fast training.
+        """
+        from src.model.yolox_megvii.data import COCODataset, TrainTransform
+
+        return COCODataset(
+            data_dir=os.path.join(
+                "/Users/sabrimansor/Desktop/CVHUB/Training Pipeline/PeekingDuck/",
+                "data",
+                "coco128_2",
+            ),
+            json_file=self.train_ann,
+            img_size=self.input_size,
+            preproc=TrainTransform(
+                max_labels=50,
+                flip_prob=self.flip_prob,
+                hsv_prob=self.hsv_prob
+            ),
+            cache=cache,
+            cache_type=cache_type,
+        )
+
+    def get_eval_dataset(self, **kwargs):
+        from src.model.yolox_megvii.data import COCODataset, ValTransform
+        testdev = kwargs.get("testdev", False)
+        legacy = kwargs.get("legacy", False)
+
+        return COCODataset(
+            data_dir=os.path.join(
+                "/Users/sabrimansor/Desktop/CVHUB/Training Pipeline/PeekingDuck/",
+                "data",
+                "coco128_2",
+            ),
+            json_file=self.val_ann if not testdev else self.test_ann,
+            name="val2017" if not testdev else "test2017",
+            img_size=self.test_size,
+            preproc=ValTransform(legacy=legacy),
+        )        
+
+    def get_evaluator(self, batch_size, is_distributed, testdev=False, legacy=False):
+        from src.model.yolox_megvii.evaluators import COCOEvaluator
+
+        return COCOEvaluator(
+            dataloader=self.get_eval_loader(batch_size, is_distributed,
+                                            testdev=testdev, legacy=legacy),
+            img_size=self.test_size,
+            confthre=self.test_conf,
+            nmsthre=self.nmsthre,
+            num_classes=self.num_classes,
+            testdev=testdev,
+        )
+
+
+class VOC_Exp(MyExp):
+    def __init__(self, cfg):
+        super(MyExp, self).__init__()
+        self.seed = cfg.seed
+        self.output_dir = cfg.output_dir
+        self.print_interval = cfg.print_interval
+        self.eval_interval = cfg.eval_interval
+        self.dataset = cfg.dataset
+        self.num_classes = cfg.num_classes
+        self.depth = cfg.depth
+        self.width = cfg.width
+        self.act = cfg.act
+        self.data_num_workers = cfg.data_num_workers
+        self.input_size = cfg.input_size
+        self.multiscale_range = cfg.multiscale_range
+        self.data_dir = cfg.data_dir
+        self.train_ann = cfg.train_ann
+        self.val_ann = cfg.val_ann
+        self.test_ann = cfg.test_ann
+        self.mosaic_prob = cfg.mosaic_prob
+        self.mixup_prob = cfg.mixup_prob
+        self.hsv_prob = cfg.hsv_prob
+        self.flip_prob = cfg.flip_prob
+        self.degrees = cfg.degrees
+        self.translate = cfg.translate
+        self.mosaic_scale = cfg.mosaic_scale
+        self.enable_mixup = cfg.enable_mixup
+        self.mixup_scale = cfg.mixup_scale
+        self.shear = cfg.shear
+        self.warmup_epochs = cfg.warmup_epochs
+        self.max_epoch = cfg.max_epoch
+        self.warmup_lr = cfg.warmup_lr
+        self.min_lr_ratio = cfg.min_lr_ratio
+        self.basic_lr_per_img = cfg.basic_lr_per_img
+        self.scheduler = cfg.scheduler
+        self.no_aug_epochs = cfg.no_aug_epochs
+        self.ema = cfg.ema
+        self.weight_decay = cfg.weight_decay
+        self.momentum = cfg.momentum
+        self.save_history_ckpt = cfg.save_history_ckpt
+        self.exp_name = cfg.exp_name
+        self.test_size = cfg.test_size
+        self.test_conf = cfg.test_conf
+        self.nmsthre = cfg.nmsthre
+        
 
     def get_dataset(self, cache: bool, cache_type: str = "ram"):
         from src.model.yolox_megvii.data import VOCDetection, TrainTransform
