@@ -15,7 +15,7 @@ yolox:
         output_dir        : './peekingduck/training/outputs'         
         print_interval    : 10                        
         eval_interval     : 10                        
-        dataset           : null                      
+        dataset           : 'coco128_2'
         num_classes       : 80                        
         depth             : 0.33      # yolox_s                
         width             : 0.5       # yolox_s   
@@ -23,7 +23,7 @@ yolox:
         data_num_workers  : 4                         
         input_size        : [640, 640]
         multiscale_range  : 5                         
-        data_dir          : "data"                      
+        data_dir          : 'data'
         train_ann         : 'instances_train2017.json'
         val_ann           : 'instances_val2017.json'  
         test_ann          : 'instances_test2017.json' 
@@ -57,7 +57,7 @@ yolox:
         output_dir        : './peekingduck/training/outputs'             
         print_interval    : 10                        
         eval_interval     : 10                        
-        dataset           : null                      
+        dataset           : 'coco128_2'
         num_classes       : 11                        
         depth             : 0.33                      
         width             : 0.5                       

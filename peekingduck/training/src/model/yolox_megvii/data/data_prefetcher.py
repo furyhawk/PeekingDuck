@@ -15,7 +15,7 @@ class DataPrefetcher:
 
     def __init__(self, loader):
         self.loader = iter(loader)
-        self.stream = None # torch.cuda.Stream()
+        self.stream = torch.cuda.Stream()
         self.input_cuda = self._input_cuda_for_image
         self.record_stream = DataPrefetcher._record_stream_for_image
         self.preload()
@@ -28,25 +28,24 @@ class DataPrefetcher:
             self.next_target = None
             return
 
-        # with torch.cuda.stream(self.stream):
-        self.input_cuda()
-        self.next_target = self.next_target # .cuda(non_blocking=True)
+        with torch.cuda.stream(self.stream):
+            self.input_cuda()
+        self.next_target = self.next_target.cuda(non_blocking=True)
 
     def next(self):
-        # torch.cuda.current_stream().wait_stream(self.stream)
+        torch.cuda.current_stream().wait_stream(self.stream)
         input = self.next_input
         target = self.next_target
         if input is not None:
             self.record_stream(input)
-        # if target is not None:
-        #     target.record_stream(torch.cuda.current_stream())
+        if target is not None:
+            target.record_stream(torch.cuda.current_stream())
         self.preload()
         return input, target
 
     def _input_cuda_for_image(self):
-        self.next_input = self.next_input # .cuda(non_blocking=True)
+        self.next_input = self.next_input.cuda(non_blocking=True)
 
     @staticmethod
     def _record_stream_for_image(input):
-        # input.record_stream(torch.cuda.current_stream())
-        pass
+        input.record_stream(torch.cuda.current_stream())
