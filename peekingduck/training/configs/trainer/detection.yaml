@@ -23,7 +23,7 @@ yolox:
         data_num_workers  : 4                         
         input_size        : [640, 640]
         multiscale_range  : 5                         
-        data_dir          : null                      
+        data_dir          : "data"                      
         train_ann         : 'instances_train2017.json'
         val_ann           : 'instances_val2017.json'  
         test_ann          : 'instances_test2017.json' 
@@ -65,7 +65,7 @@ yolox:
         data_num_workers  : 4                         
         input_size        : [640, 640]
         multiscale_range  : 5                         
-        data_dir          : null                      
+        data_dir          : 'data'                      
         train_ann         : 'instances_train2017.json'
         val_ann           : 'instances_val2017.json'  
         test_ann          : 'instances_test2017.json' 
