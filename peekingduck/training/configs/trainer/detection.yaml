@@ -1,7 +1,7 @@
 yolox:
     batch_size: 64
     resume: False
-    ckpt: "peekingduck/training/weights/yolox_s.pth"
+    ckpt: "peekingduck/training/src/model/yolox_megvii/weights/yolox_s.pth"
     fp16: null
     occupy: False
     name: "yolox_s"

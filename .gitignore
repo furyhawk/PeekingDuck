@@ -154,6 +154,8 @@ dist/
 peekingduck.egg-info/
 docs/source/peekingduck.*
 docs/source/nodes
+!peekingduck/training/src/model/yolox_megvii/weights/
+
 # Other likely files that should not be committed
 .DS_Store
 peekingduck/training/.gitignore
