@@ -141,6 +141,7 @@ cython_debug/
 data/
 !tests/data/
 !data/**/*.csv
+!peekingduck/training/src/model/yolox_megvii/data/
 
 # Other likely dirs that should not be committed
 logs/
