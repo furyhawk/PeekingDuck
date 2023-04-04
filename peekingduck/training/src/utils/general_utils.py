@@ -34,6 +34,7 @@ import numpy as np
 import pandas as pd
 import requests
 from tqdm import tqdm
+from PIL import ExifTags
 
 from src.config import TORCH_AVAILABLE, TF_AVAILABLE
 
