@@ -8,57 +8,59 @@ Overview
  Introduction 
 ==============
 
-**Low-code model training with custom dataset**
+Training a custom model with custom datasets is one of the key tasks when building computer vision solutions.
 
-You can use your own dataset to train an image classification or object detection model without writing the boilerplate codes. Simply organize your data with the required format, place them at the designated directory, execute the terminal commands, and the training pipeline will take care of the rest.
+Peeking Duck allows you to train a custom computer vision model with your own dataset without the need to write the boilerplate codes.
+
+This section will introduce you the key features of the training pipeline and how to get started.
+The following sections will introduce you how to train your own model with your own data by customizing the training parameters.
+
+The current version of PeekingDuck supports image classification model training. Object detection are being developed and will be available in future releases.
 
 
 Features
 --------
 
+.. raw:: html
 
-**Custom dataset**
+   <h6>Train with Tensorflow or PyTorch</h6>
 
-With the right data formats, the user can use their own dataset for various applications.
+PeekingDuck supports official pre-trained models from both `TensorFlow <https://www.tensorflow.org/api_docs/python/tf/keras/applications#modules>`_ and `PyTorch <https://www.tensorflow.org/api_docs/python/tf/keras/applications#modules>`_.
 
+.. raw:: html
 
-**Use Popular pre-trained models from TensorFlow and PyTorch**
+   <h6>Train with your own data</h6>
 
-Peekingduck supports popular pre-trained models for both PyTorch and TensorFlow for image classification, and PyTorch for object detection. The selection of the model can be easily customized in the configuration files.
+PeekingDuck supports data loading and model training on your own dataset. Refer to :ref:`using_custom_dataset` for more details.
 
+.. raw:: html
 
-**Analyze Runs**
+   <h6>Customize training parameters</h6>
 
-PeekingDuck uses Weights & Biases for training tracking, model versioning and result visualization. The user is required to setup an account on Weights & Biases to upload and view the training logs online, or hosting a local server to view the training logs locally.  Refer to the setup guide for more details.
+With PeekingDuck, you can easily configure various training parameters via configuration yaml files or command line arguments. Refer to :ref:`configuring_training_parameters` for more details.
 
+.. raw:: html
 
-**Configure Training Parameters**
+   <h6>Analyze right after training</h6>
 
-PeekingDuck allows you to configure your training parameters easily with configuration yaml files or command line arguments.
-
-
-**Save the trained model**
-
-You can save the model trained with PeekingDuck at the designated location for your own usage
-
+PeekingDuck uses Weights & Biases to analyze and visualize the training process and performances of the saved models. Refer to the :ref:`setting-up-weights-and-biases` section below for more details.
 
 
-How training pipeline works
-===========================
+How the training pipeline works
+===============================
 
+PeekingDuck training pipeline is designed with cross-platform compatibility in mind. A high-level overview of the architecture is shown here:
 
-**Overview Diagram**
+.. image:: /assets/diagrams/C4Diagram-L4_SimplifiedOverview.png
+
+The general workflow when using the training pipeline is:
 
 #. Organize your data with the required format 
 #. Place them at the designated directory
 #. Personalise your training if necessary 
 #. Execute from the terminal
 
-
-**Component Diagram**
-
-.. image:: /assets/diagrams/C4Diagram-L4_SimplifiedOverview.png
-
+Refer to the next section to get started.
 
 
 ----------
@@ -66,6 +68,9 @@ How training pipeline works
 ================
  Getting Started
 ================
+
+This guide explains how you can prepare your environment and test out the default pipeline using either TensorFlow or Pytorch.
+
 
 Install PeekingDuck Training Pipeline
 -------------------------------------
@@ -87,10 +92,15 @@ Install PeekingDuck Training Pipeline
       .. code-block:: bash
          :linenos:
 
-         conda create -n pkd python=3.8
-         conda activate pkd
-         git clone <TODO: PeekdingDuck repository>
+         # Create conda environment & activate
+         conda create -n pkd-training python=3.8
+         conda activate pkd-training
+
+         # Clone PeekingDuck repository
+         git clone <https://github.com/aisingapore/PeekingDuck.git>
          cd PeekdingDuck
+
+         # Install required packages
          pip install -r peekingduck/training/requirements.txt
 
       **CUDA GPU**
@@ -98,19 +108,33 @@ Install PeekingDuck Training Pipeline
       .. code-block:: bash
          :linenos:
 
-         conda create -n pkd python=3.8
-         conda activate pkd
-         git clone <TODO: PeekdingDuck repository>
+         # Create conda environment & activate
+         conda create -n pkd-training python=3.8
+         conda activate pkd-training
+
+         # Clone PeekingDuck repository
+         git clone <https://github.com/aisingapore/PeekingDuck.git>
          cd PeekdingDuck
+
+         # Install required packages
          pip install -r peekingduck/training/requirements.txt
-         conda install -c conda-forge cudatoolkit=11.2.2 cudnn=8.1.0
-         mkdir -p $CONDA_PREFIX/etc/conda/activate.d \
-         && mkdir -p $CONDA_PREFIX/etc/conda/deactivate.d \
-         && echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CONDA_PREFIX/lib/'>\
-         $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh && \
+
+         # Refer to the official guide from Tensorflow (https://www.tensorflow.org/install/pip) to install cuda and cudnn
+
+         # Create the bash file to automatically set the PATH variable for cuda when activating the environment
+         mkdir -p $CONDA_PREFIX/etc/conda/activate.d
+         
+         echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CONDA_PREFIX/lib/'>\
+         $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
+         
+         # Create the bash file to automatically reset the PATH variable when deactivating the environment
+         mkdir -p $CONDA_PREFIX/etc/conda/deactivate.d
+
          echo 'unset LD_LIBRARY_PATH'>\
          $CONDA_PREFIX/etc/conda/deactivate.d/env_vars.sh
-         conda activate base && conda activate pkd
+
+         # Reinitialize environment
+         conda activate base && conda activate pkd-training
 
    .. tab:: Windows
 
@@ -129,10 +153,15 @@ Install PeekingDuck Training Pipeline
       .. code-block:: bash
          :linenos:
 
-         conda create -n pkd python=3.8
-         conda activate pkd
-         git clone <TODO: PeekdingDuck repository>
+         # Create conda environment & activate
+         conda create -n pkd-training python=3.8
+         conda activate pkd-training
+
+         # Clone PeekingDuck repository
+         git clone <https://github.com/aisingapore/PeekingDuck.git>
          cd PeekdingDuck
+
+         # Install required packages
          pip install -r peekingduck/training/requirements.txt
 
       **CUDA GPU**
@@ -140,19 +169,33 @@ Install PeekingDuck Training Pipeline
       .. code-block:: bash
          :linenos:
 
-         conda create -n pkd python=3.8
-         conda activate pkd
-         git clone <TODO: PeekdingDuck repository>
+         # Create conda environment & activate
+         conda create -n pkd-training python=3.8
+         conda activate pkd-training
+
+         # Clone PeekingDuck repository
+         git clone <https://github.com/aisingapore/PeekingDuck.git>
          cd PeekdingDuck
+
+         # Install required packages
          pip install -r peekingduck/training/requirements.txt
-         conda install -c conda-forge cudatoolkit=11.2.2 cudnn=8.1.0
-         mkdir -p $CONDA_PREFIX/etc/conda/activate.d \
-         && mkdir -p $CONDA_PREFIX/etc/conda/deactivate.d \
-         && echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CONDA_PREFIX/lib/'>\
-         $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh && \
+
+         # Refer to the official guide from Tensorflow (https://www.tensorflow.org/install/pip) to install cuda and cudnn
+
+         # Create the bash file to automatically set the PATH variable for cuda when activating the environment
+         mkdir -p $CONDA_PREFIX/etc/conda/activate.d
+
+         echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CONDA_PREFIX/lib/'>\
+         $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
+         
+         # Create the bash file to automatically reset the PATH variable when deactivating the environment
+         mkdir -p $CONDA_PREFIX/etc/conda/deactivate.d
+
          echo 'unset LD_LIBRARY_PATH'>\
          $CONDA_PREFIX/etc/conda/deactivate.d/env_vars.sh
-         conda activate base && conda activate pkd
+
+         # Reinitialize environment
+         conda activate base && conda activate pkd-training
 
    .. tab:: Mac 
     
@@ -174,10 +217,13 @@ Install PeekingDuck Training Pipeline
          .. code-block:: bash
             :linenos:
 
+            # Clone PeekingDuck repository
+            git clone <https://github.com/aisingapore/PeekingDuck.git>
+            cd PeekdingDuck
+
+            # Create conda environment & activate
             conda env create -f peekingduck/training/requirements_mac.yaml
             conda activate pkd-training
-            git clone <TODO: PeekdingDuck repository>
-            cd PeekdingDuck
 
       Install TensorFlow
 
@@ -186,30 +232,57 @@ Install PeekingDuck Training Pipeline
             
             bash .peekingduck/training/scripts/install_tensorflow_macos.sh
 
+.. _setting-up-weights-and-biases:
 
 Setting up Weights & Biases
 ---------------------------
 
-We recommend using the cloud host from Weights and Biases as it's easier to get started. You may refer to the `official guide <https://docs.wandb.ai/quickstart>`_ for setting up an account.
-
-In a nutshell, follow the 3 steps below:
+Follow the steps below to get configure weights & biases:
 
 1. `Sign up <https://wandb.ai/site>`_ for a free account and then login to your wandb account.
 2. (If not yet installed via requirements.txt) Pip install the wandb library on your machine in a Python 3 environment.
 3. Login to the wandb library on your machine. You will find your API key `here <https://wandb.ai/authorize>`_
 
-========
-Test Run
-========
+.. code-block:: bash
+   :linenos:
+   
+   pip install wandb
 
-To test the training pipeline with the default cifar10 dataset, use the following commands in terminal:
+   # Login to weights & biases
+   wandb login
+
+Refer to the `official guide <https://docs.wandb.ai/quickstart>`_ for setting up an account.
+
+If you prefer private hosting instead, refer to the `official guide <https://docs.wandb.ai/guides/hosting>`_ to set up private hosting.
+
+Also, if you prefer not to use weights & biases, you can disable it as such:
 
 .. code-block:: bash
    :linenos:
    
-   # use the default configurations to test
-   cd PeekdingDuck
+   # Disable weights & biases
+   wandb disable
+
+
+========
+Test Run
+========
+
+You can test the training pipeline with the default :mod:`cifar10` dataset using the following commands in terminal:
+
+.. code-block:: bash
+   :linenos:
+   
+   # Use the default configurations to test
+
+   cd PeekingDuck
+
+   # Tensorflow
    python ./peekingduck/training/main.py debug=True framework=tensorflow
+
+   # Pytorch
    python ./peekingduck/training/main.py debug=True framework=pytorch
 
-When you manage to run either of the commands without any errors, the next section you can find out more about how to prepare your dataset to the correct format.
+View the results of each run at the specified output folder directory: :mod:`\./PeekingDuck/outputs/\<PROJECT_NAME\>/\<DATE_TIME\>`
+
+After running either of the commands without any errors, read on to the next page to see how you can configure the parameters for a more comprehensive training.

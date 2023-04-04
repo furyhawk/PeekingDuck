@@ -18,9 +18,7 @@ pandas
 scikit-learn
 torchinfo
 torchmetrics
-albumentations
-imagesize
+albumentations ~= 1.3
 matplotlib
 timm
-tabulate
 wandb
