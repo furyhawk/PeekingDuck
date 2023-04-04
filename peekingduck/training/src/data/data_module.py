@@ -221,10 +221,10 @@ class ObjectDetectionDataModule:
         self.transforms: ImageClassificationTransforms = ImageClassificationTransforms(
             cfg.transform[cfg.framework]
         )
-        self.dataset_loader: Union[DataAdapter, None] = None  # Setup in self.setup()
+        self.dataset_loader: Optional[DataAdapter] = None  # Setup in self.setup()
         self.kwargs = kwargs
 
-    def get_train_dataloader(self) -> DataAdapter:
+    def get_train_dataloader(self) -> Union[DataLoader, AbstractDataSet]:
         """Return training data loader adapter"""
         assert self.dataset_loader is not None, "call setup() before getting dataloader"
         return self.dataset_loader.train_dataloader(
@@ -232,15 +232,15 @@ class ObjectDetectionDataModule:
             transforms=self.train_transforms,
         )
 
-    def get_validation_dataloader(self) -> DataAdapter:
+    def get_validation_dataloader(self) -> Union[DataLoader, AbstractDataSet]:
         """Return validation data loader adapter"""
         assert self.dataset_loader is not None, "call setup() before getting dataloader"
         return self.dataset_loader.validation_dataloader(
             self.valid_dataset,
-            transforms=self.valid_transforms,
+            transforms=self.validation_transforms,
         )
 
-    def get_test_dataloader(self) -> DataAdapter:
+    def get_test_dataloader(self) -> Union[DataLoader, AbstractDataSet]:
         """Return test data loader adapter"""
         assert self.dataset_loader is not None, "call setup() before getting dataloader"
         return self.dataset_loader.test_dataloader(
@@ -321,23 +321,29 @@ class ObjectDetectionDataModule:
     def setup(self, stage: str) -> None:
         """Step 3 after prepare()"""
         self.train_transforms: Compose = self.transforms.train_transforms
-        self.valid_transforms: Compose = self.transforms.valid_transforms
+        self.validation_transforms: Compose = self.transforms.validation_transforms
         self.test_transforms: Compose = self.transforms.test_transforms
         if stage == "fit":
             if self.cfg.framework == "pytorch":
-                self.train_dataset: AbstractDataSet = PTObjectDetectionDataset(
+                self.train_dataset: Union[
+                    AbstractDataSet, pd.DataFrame
+                ] = PTObjectDetectionDataset(
                     self.cfg,
                     dataframe=self.train_df,
                     stage="train",
                     transforms=self.train_transforms,
                 )
-                self.valid_dataset: AbstractDataSet = PTObjectDetectionDataset(
+                self.valid_dataset: Union[
+                    AbstractDataSet, pd.DataFrame
+                ] = PTObjectDetectionDataset(
                     self.cfg,
                     dataframe=self.valid_df,
                     stage="validation",
-                    transforms=self.valid_transforms,
+                    transforms=self.validation_transforms,
                 )
-                self.test_dataset: AbstractDataSet = PTObjectDetectionDataset(
+                self.test_dataset: Union[
+                    AbstractDataSet, pd.DataFrame
+                ] = PTObjectDetectionDataset(
                     self.cfg,
                     dataframe=self.test_df,
                     stage="test",
