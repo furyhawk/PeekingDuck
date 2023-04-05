@@ -307,13 +307,13 @@ class ObjectDetectionDataModule:
             )
             if stratify_by is None:
                 self.train_df = self.train_df.sample(num_debug_samples)
-                self.valid_df = self.valid_df.sample(num_debug_samples)
+                self.validation_df = self.validation_df.sample(num_debug_samples)
             else:
                 self.train_df = stratified_sample_df(
                     self.train_df, stratify_by, num_debug_samples
                 )
-                self.valid_df = stratified_sample_df(
-                    self.valid_df, stratify_by, num_debug_samples
+                self.validation_df = stratified_sample_df(
+                    self.validation_df, stratify_by, num_debug_samples
                 )
 
         logger.info(self.train_df.info())
@@ -351,7 +351,7 @@ class ObjectDetectionDataModule:
                 )
             if self.cfg.framework == "tensorflow":
                 self.train_dataset = self.train_df
-                self.valid_dataset = self.valid_df
+                self.validation_dataset = self.validation_df
                 self.test_dataset = self.test_df
 
         self.dataset_loader = DataAdapter(self.cfg.data_adapter[self.cfg.framework])
