@@ -274,6 +274,7 @@ class PTObjectDetectionDataset(Dataset):
         self.dataframe: pd.DataFrame = dataframe
         self.stage: str = stage
         self.transforms: TransformTypes = transforms
+        self.max_labels: int = int(self.cfg.dataset.max_labels)
 
         self.image_path = dataframe[cfg.dataset.image_path_col_name].values
         self.label_path = (
@@ -300,11 +301,11 @@ class PTObjectDetectionDataset(Dataset):
 
         # Get target for all modes except for test dataset.
         # If test, replace target with dummy ones as placeholder.
-        training_data = {"labels": []}
-        if self.stage != "test":
+        training_data = (image, np.zeros((self.max_labels, 5), dtype=np.float32))
+        if self.stage != "test" and self.label_path is not None:
             label_path = self.label_path[index]
-            training_data = self.get_labels(label_path, self.cfg.dataset.num_classes)
-            training_data["img"] = image
+            labels = self.get_labels(label_path, self.cfg.dataset.num_classes)
+            training_data = (image, labels)
 
         return training_data
 
@@ -330,6 +331,7 @@ class PTObjectDetectionDataset(Dataset):
         return torch.tensor(target, dtype=dtype)
 
     def verify_image(self, im_file):
+        """verify images"""
         msg = ""
         # verify images
         im = Image.open(im_file)
@@ -349,6 +351,7 @@ class PTObjectDetectionDataset(Dataset):
         return msg
 
     def verify_label(self, lb_file, num_cls):
+        """verify labels"""
         try:
             # verify labels
             if os.path.isfile(lb_file):
@@ -370,7 +373,8 @@ class PTObjectDetectionDataset(Dataset):
                         ), f"labels require 5 columns, {lb.shape[1]} columns detected"
                         assert (
                             lb[:, 1:] <= 1
-                        ).all(), f"non-normalized or out of bounds coordinates {lb[:, 1:][lb[:, 1:] > 1]}"
+                        ).all(), "non-normalized or out of bounds coordinates"
+                        f" {lb[:, 1:][lb[:, 1:] > 1]}"
 
                         # All labels
                         max_cls = int(lb[:, 0].max())  # max label count
@@ -402,16 +406,11 @@ class PTObjectDetectionDataset(Dataset):
             logger.info(f"WARNING ⚠️ {lb_file}: ignoring corrupt image/label: {e}")
 
     def get_labels(self, label_path, num_cls):
-        # print(num_cls)
-        # y = {"labels": []}  # pylint: disable=W0631
-        targets = self.verify_label(label_path, num_cls)
-        # y["labels"].append(
-        #     dict(
-        #         cls=targets[:, 0:1],  # n, 1
-        #         bboxes=targets[:, 1:],  # n, 4
-        #     )
-        # )
-        return dict(
-            cls=targets[:, 0:1],  # n, 1
-            bboxes=targets[:, 1:],  # n, 4
-        )
+        """get labels"""
+        targets_t = self.verify_label(label_path, num_cls)
+        padded_labels = np.zeros((self.max_labels, 5))
+        padded_labels[range(len(targets_t))[: self.max_labels]] = targets_t[
+            : self.max_labels
+        ]
+        padded_labels = np.ascontiguousarray(padded_labels, dtype=np.float32)
+        return padded_labels
