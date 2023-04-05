@@ -29,13 +29,12 @@ from pathlib import Path, PurePath
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from contextlib import nullcontext
-import imagesize
-from PIL import ExifTags
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import requests
 from tqdm import tqdm
+from PIL import ExifTags
 
 from src.config import TORCH_AVAILABLE, TF_AVAILABLE
 
@@ -254,7 +253,7 @@ def return_list_of_files(
 
 
 def create_dataframe_with_image_info(
-    image_dir: List[Path],
+    image_dir: Union[List[str], List[Path]],
     class_name_to_id: Dict[str, int],
     save_path: Optional[str] = None,
 ) -> pd.DataFrame:
@@ -278,13 +277,12 @@ def create_dataframe_with_image_info(
         class_id = int(class_name_to_id[class_name])
 
         image_path = image_path.as_posix()
-        width, height = imagesize.get(image_path)
 
-        data_list.append([image_path, class_id, class_name, width, height])
+        data_list.append([image_path, class_id, class_name])
 
     df = pd.DataFrame(  # image_path_col_name
         data_list,
-        columns=["image_path", "class_id", "class_name", "width", "height"],
+        columns=["image_path", "class_id", "class_name"],
     )
     if save_path is not None:
         df.to_csv(save_path, index=False)

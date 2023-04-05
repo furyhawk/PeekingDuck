@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""data adapter class for dataloader"""
+"""Data adapter class for dataloader"""
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any, Union
 from omegaconf import DictConfig
+
+import pandas as pd
 from torch.utils.data import DataLoader
 from albumentations import Compose
 
@@ -44,52 +46,55 @@ class DataAdapter:
             self.loader = TFImageClassificationDataset
 
     def train_dataloader(
-        self, dataset: AbstractDataSet, transforms: Compose
-    ) -> Optional[Any]:
+        self, dataset: Union[AbstractDataSet, pd.DataFrame], transforms: Compose
+    ) -> Union[DataLoader, AbstractDataSet]:
         """train_dataloader"""
         if self.cfg.adapter_type == "pytorch":
-            loader = self.loader(
+            return self.loader(
                 dataset,
                 **self.cfg.train,
             )
         if self.cfg.adapter_type == "tensorflow":
-            loader = self.loader(
+            return self.loader(
                 dataset,
                 transforms=transforms,
                 **self.cfg.train,
             )
-        return loader
+
+        raise UnboundLocalError(f"Unsupported framework {self.cfg.adapter_type}")
 
     def validation_dataloader(
-        self, dataset: AbstractDataSet, transforms: Compose
-    ) -> Optional[Any]:
+        self, dataset: Union[AbstractDataSet, pd.DataFrame], transforms: Compose
+    ) -> Union[DataLoader, AbstractDataSet]:
         """validation_dataloader"""
         if self.cfg.adapter_type == "pytorch":
-            loader = self.loader(
+            return self.loader(
                 dataset,
-                **self.cfg.valid,
+                **self.cfg.validation,
             )
         if self.cfg.adapter_type == "tensorflow":
-            loader = self.loader(
+            return self.loader(
                 dataset,
                 transforms=transforms,
-                **self.cfg.valid,
+                **self.cfg.validation,
             )
-        return loader
+
+        raise UnboundLocalError(f"Unsupported framework {self.cfg.adapter_type}")
 
     def test_dataloader(
-        self, dataset: AbstractDataSet, transforms: Compose
-    ) -> Optional[Any]:
+        self, dataset: Union[AbstractDataSet, pd.DataFrame], transforms: Compose
+    ) -> Union[DataLoader, AbstractDataSet]:
         """test_dataloader"""
         if self.cfg.adapter_type == "pytorch":
-            loader = self.loader(
+            return self.loader(
                 dataset,
                 **self.cfg.test,
             )
         if self.cfg.adapter_type == "tensorflow":
-            loader = self.loader(
+            return self.loader(
                 dataset,
                 transforms=transforms,
                 **self.cfg.test,
             )
-        return loader
+
+        raise UnboundLocalError(f"Unsupported framework {self.cfg.adapter_type}")
