@@ -96,12 +96,12 @@ class COCO_Exp(MyExp):
                 "disk": Caching imgs to disk for fast training.
         """
         from src.model.yolox_megvii.data import COCODataset, TrainTransform
-
+        print("COCODataset get_dataset: ", os.getcwd())
         return COCODataset(
             data_dir=os.path.join(
-                "/Users/sabrimansor/Desktop/CVHUB/Training Pipeline/PeekingDuck/",
+                os.getcwd(),
                 "data",
-                "coco128_2",
+                self.data_dir,
             ),
             json_file=self.train_ann,
             img_size=self.input_size,
@@ -118,12 +118,12 @@ class COCO_Exp(MyExp):
         from src.model.yolox_megvii.data import COCODataset, ValTransform
         testdev = kwargs.get("testdev", False)
         legacy = kwargs.get("legacy", False)
-
+        print("COCODataset get_eval_dataset: ", os.getcwd())
         return COCODataset(
             data_dir=os.path.join(
-                "/Users/sabrimansor/Desktop/CVHUB/Training Pipeline/PeekingDuck/",
+                os.getcwd(),
                 "data",
-                "coco128_2",
+                self.data_dir,
             ),
             json_file=self.val_ann if not testdev else self.test_ann,
             name="val2017" if not testdev else "test2017",
@@ -193,12 +193,12 @@ class VOC_Exp(MyExp):
 
     def get_dataset(self, cache: bool, cache_type: str = "ram"):
         from src.model.yolox_megvii.data import VOCDetection, TrainTransform
-
+        print("VOCDetection get_dataset: ", os.getcwd())
         return VOCDetection(
             data_dir=os.path.join(
-                "/Users/sabrimansor/Desktop/CVHUB/Training Pipeline/PeekingDuck/",
+                os.getcwd(),
                 "data",
-                "VOCdevkit",
+                self.data_dir,
             ),
             image_sets=[
                 ("2007", "trainval")
@@ -215,12 +215,12 @@ class VOC_Exp(MyExp):
         from src.model.yolox_megvii.data import VOCDetection, ValTransform
 
         legacy = kwargs.get("legacy", False)
-
+        print("VOCDetection get_eval_dataset: ", os.getcwd())
         return VOCDetection(
             data_dir=os.path.join(
-                "/Users/sabrimansor/Desktop/CVHUB/Training Pipeline/PeekingDuck/",
+                os.getcwd(),
                 "data",
-                "VOCdevkit",
+                self.data_dir,
             ),
             image_sets=[("2007", "test")],
             img_size=self.test_size,

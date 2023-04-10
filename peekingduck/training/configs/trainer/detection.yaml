@@ -9,7 +9,7 @@ yolox:
     cache: null
     logger: "tensorboard"
     trainer_params:
-      ds_format: "coco"
+      ds_format: "voc"
       coco:
         seed              : null                      
         output_dir        : './peekingduck/training/outputs'         
@@ -25,33 +25,33 @@ yolox:
         multiscale_range  : 5                         
         data_dir          : 'data'
         train_ann         : 'instances_train2017.json'
-        val_ann           : 'instances_val2017.json'  
-        test_ann          : 'instances_test2017.json' 
-        mosaic_prob       : 1.0                       
-        mixup_prob        : 1.0                       
-        hsv_prob          : 1.0                       
-        flip_prob         : 0.5                       
-        degrees           : 10.0                      
-        translate         : 0.1                       
-        mosaic_scale      : [0.1, 2]                  
-        enable_mixup      : True                      
-        mixup_scale       : [0.5, 1.5]                
-        shear             : 2.0                       
-        warmup_epochs     : 1                         
-        max_epoch         : 3                         
-        warmup_lr         : 0                         
-        min_lr_ratio      : 0.05                      
-        basic_lr_per_img  : 0.00015625                
-        scheduler         : 'yoloxwarmcos'            
-        no_aug_epochs     : 15                        
-        ema               : True                      
-        weight_decay      : 0.0005                    
-        momentum          : 0.9                       
-        save_history_ckpt : True                      
-        exp_name          : 'detection_pipeline'      
-        test_size         : [640, 640]           
-        test_conf         : 0.01                      
-        nmsthre           : 0.65   
+        val_ann           : 'instances_val2017.json'
+        test_ann          : 'instances_test2017.json'
+        mosaic_prob       : 1.0
+        mixup_prob        : 1.0
+        hsv_prob          : 1.0
+        flip_prob         : 0.5
+        degrees           : 10.0
+        translate         : 0.1
+        mosaic_scale      : [0.1, 2]
+        enable_mixup      : True
+        mixup_scale       : [0.5, 1.5]
+        shear             : 2.0
+        warmup_epochs     : 1
+        max_epoch         : 3
+        warmup_lr         : 0
+        min_lr_ratio      : 0.05
+        basic_lr_per_img  : 0.00015625
+        scheduler         : 'yoloxwarmcos'
+        no_aug_epochs     : 15
+        ema               : True
+        weight_decay      : 0.0005
+        momentum          : 0.9
+        save_history_ckpt : True
+        exp_name          : ${project_name}
+        test_size         : [640, 640]
+        test_conf         : 0.01
+        nmsthre           : 0.65
       voc:
         seed              : null                      
         output_dir        : './peekingduck/training/outputs'             
@@ -67,30 +67,30 @@ yolox:
         multiscale_range  : 5                         
         data_dir          : 'data'                      
         train_ann         : 'instances_train2017.json'
-        val_ann           : 'instances_val2017.json'  
-        test_ann          : 'instances_test2017.json' 
-        mosaic_prob       : 1.0                       
-        mixup_prob        : 1.0                       
-        hsv_prob          : 1.0                       
-        flip_prob         : 0.5                       
-        degrees           : 10.0                      
-        translate         : 0.1                       
+        val_ann           : 'instances_val2017.json'
+        test_ann          : 'instances_test2017.json'
+        mosaic_prob       : 1.0
+        mixup_prob        : 1.0
+        hsv_prob          : 1.0
+        flip_prob         : 0.5
+        degrees           : 10.0
+        translate         : 0.1
         mosaic_scale      : [0.1, 2]
-        enable_mixup      : True                      
+        enable_mixup      : True
         mixup_scale       : [0.5, 1.5]
-        shear             : 2.0                       
-        warmup_epochs     : 1                         
-        max_epoch         : 3                         
-        warmup_lr         : 0                         
-        min_lr_ratio      : 0.05                      
-        basic_lr_per_img  : 0.00015625                
-        scheduler         : 'yoloxwarmcos'            
-        no_aug_epochs     : 15                        
-        ema               : True                      
-        weight_decay      : 0.0005                    
-        momentum          : 0.9                       
-        save_history_ckpt : True                      
-        exp_name          : 'detection_pipeline'      
-        test_size         : [640, 640]          
-        test_conf         : 0.01                      
+        shear             : 2.0
+        warmup_epochs     : 1
+        max_epoch         : 3
+        warmup_lr         : 0
+        min_lr_ratio      : 0.05
+        basic_lr_per_img  : 0.00015625
+        scheduler         : 'yoloxwarmcos'
+        no_aug_epochs     : 15
+        ema               : True
+        weight_decay      : 0.0005
+        momentum          : 0.9
+        save_history_ckpt : True
+        exp_name          : ${project_name}
+        test_size         : [640, 640]
+        test_conf         : 0.01
         nmsthre           : 0.65
