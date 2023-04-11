@@ -383,9 +383,9 @@ class YOLOXHead(nn.Module):  # pylint: disable=too-many-instance-attributes
         if grid.shape[2:4] != output.shape[2:4]:
             yv, xv = meshgrid([torch.arange(hsize), torch.arange(wsize)])
             if dtype.startswith("torch.mps"):
-                grid = torch.stack((xv, yv), 2).view(1, 1, hsize, wsize, 2).to("mps")
-                self.grids[k] = grid.to("mps")
-                output = output.to("mps")
+                grid = torch.stack((xv, yv), 2).view(1, 1, hsize, wsize, 2).to("cpu")
+                self.grids[k] = grid.to("cpu")
+                output = output.to("cpu")
             else:
                 grid = torch.stack((xv, yv), 2).view(1, 1, hsize, wsize, 2).type(dtype)
                 self.grids[k] = grid
@@ -393,6 +393,8 @@ class YOLOXHead(nn.Module):  # pylint: disable=too-many-instance-attributes
         output = output.view(batch_size, 1, n_ch, hsize, wsize)
         output = output.permute(0, 1, 3, 4, 2).reshape(batch_size, hsize * wsize, -1)
         grid = grid.view(1, -1, 2)
+        if dtype.startswith("torch.mps"):
+            output = output.to("cpu")
         output[..., :2] = (output[..., :2] + grid) * stride
         output[..., 2:4] = torch.exp(output[..., 2:4]) * stride
         return output, grid
@@ -422,9 +424,9 @@ class YOLOXHead(nn.Module):  # pylint: disable=too-many-instance-attributes
             shape = grid.shape[:2]
             strides.append(torch.full((*shape, 1), stride))
         if dtype.startswith("torch.mps"):
-            grids_tensor = torch.cat(grids, dim=1).to("mps")
-            strides_tensor = torch.cat(strides, dim=1).to("mps")
-            outputs = outputs.to("mps")
+            grids_tensor = torch.cat(grids, dim=1).to("cpu")
+            strides_tensor = torch.cat(strides, dim=1).to("cpu")
+            outputs = outputs.to("cpu")
         else:
             grids_tensor = torch.cat(grids, dim=1).type(dtype)
             strides_tensor = torch.cat(strides, dim=1).type(dtype)
@@ -613,10 +615,10 @@ class YOLOXHead(nn.Module):  # pylint: disable=too-many-instance-attributes
         y_shifts,
         cls_preds,
         obj_preds,
-        mode="gpu",
+        mode="cpu",
     ):
         if mode == "cpu":
-            print("-----------Using CPU for the Current Batch-------------")
+            # print("-----------Using CPU for the Current Batch-------------")
             gt_bboxes_per_image = gt_bboxes_per_image.cpu().float()
             bboxes_preds_per_image = bboxes_preds_per_image.cpu().float()
             gt_classes = gt_classes.cpu().float()

@@ -102,7 +102,7 @@ def bboxes_iou(bboxes_a, bboxes_b, xyxy=True):
         area_b = torch.prod(bboxes_b[:, 2:], 1)
 
     if tl.type().startswith("torch.mps"):
-        en = (tl < br).type("torch.FloatTensor").prod(dim=2).to("mps")
+        en = (tl < br).type("torch.FloatTensor").prod(dim=2).to("cpu")
     else:
         en = (tl < br).type(tl.type()).prod(dim=2)
     area_i = torch.prod(br - tl, 2) * en  # * ((tl < br).all())
