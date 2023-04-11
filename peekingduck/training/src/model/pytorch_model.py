@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Callable, Union
+from typing import Callable, Optional, Union
 import timm
 import torch
 import torchvision
@@ -60,21 +60,21 @@ class PTClassificationModel(PTModel):
     def create_model(self) -> Union[nn.Module, Callable]:
         """Create the model sequentially."""
 
-        backbone = self.create_backbone()
+        model = self.create_backbone()
 
         if self.adapter == "torchvision":
             last_layer_name, _, in_features = self.get_last_layer()
 
             # create and reset the classifier layer
             head = self.create_head(in_features)
-            rsetattr(backbone, last_layer_name, head)
+            rsetattr(model, last_layer_name, head)
 
         elif self.adapter == "timm":
-            backbone.reset_classifier(num_classes=self.model_config.num_classes)
+            model.reset_classifier(num_classes=self.model_config.num_classes)
         else:
             raise ValueError(f"Adapter {self.adapter} not supported.")
 
-        return backbone
+        return model
 
     def create_backbone(self) -> Union[nn.Module, Callable]:
         """Create the backbone of the model.
@@ -119,13 +119,9 @@ class PTObjectDetectionModel(PTModel):
     def __init__(self, cfg: DictConfig) -> None:
         super().__init__(cfg)
 
-        self.adapter = self.model_config.adapter
-        self.model_name = self.model_config.model_name
-        self.pretrained = self.model_config.pretrained
-        self.weights = self.model_config.weights
         self.model = self.create_model()
 
-        logger.info(f"Successfully created model: {self.model_config.model_name}")
+        logger.info(f"Successfully created model:")
 
     def create_model(self) -> Union[nn.Module, Callable]:
         """Create the model sequentially."""
@@ -139,18 +135,26 @@ class PTObjectDetectionModel(PTModel):
         if getattr(self, "model", None) is None:
             self.model = YOLOX(
                 self.model_config.num_classes,
-                self.model_config.image_size,
-                self.model_config.image_size,
+                self.model_config.depth,
+                self.model_config.width,
             )
 
         self.model.apply(init_yolo)
         self.model.head.initialize_biases(1e-2)  # type: ignore
-        self.model.train()
+        # self.model.train()
 
         return self.model
 
-    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+    def create_head(self, in_features: int) -> nn.Module:
+        return self.model
+
+    def create_backbone(self) -> Union[nn.Module, Callable]:
+        return self.model
+
+    def forward(
+        self, inputs: torch.Tensor, targets: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         """Forward pass of the model based on the adapter"""
-        outputs = self.model(inputs)
+        outputs = self.model(inputs, targets)
 
         return outputs

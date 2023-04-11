@@ -34,6 +34,8 @@ def init_callbacks(callbacks: List[Union[DictConfig, str]]) -> List:
         callbacks: The list of callbacks from
                     configs->callbacks->classification/detection/segmentation.
     """
+    if callbacks is None:
+        return []
     cb_list = []
     for callback in callbacks:
         if isinstance(callback, DictConfig):

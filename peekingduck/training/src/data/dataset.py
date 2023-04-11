@@ -289,7 +289,7 @@ class PTObjectDetectionDataset(Dataset):
         """Generate one batch of data"""
         assert self.stage in [
             "train",
-            "valid",
+            "validation",
             "debug",
             "test",
         ], f"Invalid stage {self.stage}."
