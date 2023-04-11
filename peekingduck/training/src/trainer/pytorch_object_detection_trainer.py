@@ -263,11 +263,9 @@ class PytorchTrainer:
 
             # Forward pass logits
             # with torch.cuda.amp.autocast(enabled=self.amp_training):
-            print(f"_run_train_epoch{inputs.shape}{targets.shape}")
             logits = self.model(inputs, targets)
 
             loss = logits["total_loss"]
-            print(f"_run_train_epoch{loss}")
 
             self.optimizer.zero_grad()
             self.scaler.scale(loss).backward()
@@ -305,6 +303,10 @@ class PytorchTrainer:
         #     train_probs_tensor,
         #     "train",
         # )
+        # losses_output = logits.detach().cpu()
+        loss_str = ", ".join([f"{k}: {v:.1f}" for k, v in logits.items()])
+        print(loss_str)  # loss.cpu().detach().item()
+        print(loss.detach().cpu().item())
 
         self._invoke_callbacks(EVENTS.TRAIN_LOADER_END.value)
         self._invoke_callbacks(EVENTS.TRAIN_EPOCH_END.value)
@@ -366,7 +368,8 @@ class PytorchTrainer:
                 valid_logits.extend(logits.cpu())
                 # valid_preds.extend(y_valid_pred.cpu())
                 # valid_probs.extend(y_valid_prob.cpu())
-
+            print(f"_run_validation_epoch_valid_logits{logits.shape}")
+            print(f"_run_validation_epoch_valid_trues{targets.shape}")
         # (
         #     valid_trues_tensor,
         #     valid_logits_tensor,

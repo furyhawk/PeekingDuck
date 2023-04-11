@@ -97,7 +97,7 @@ class YOLOX(nn.Module):
         # FPN output content features of [dark3, dark4, dark5]
         fpn_outs = self.backbone(inputs)
         if self.training:
-            assert inputs is not None
+            assert targets is not None
             loss, iou_loss, conf_loss, cls_loss, l1_loss, num_fg = self.head(
                 fpn_outs, targets, inputs
             )
@@ -367,10 +367,14 @@ class YOLOXHead(nn.Module):  # pylint: disable=too-many-instance-attributes
                 [x.flatten(start_dim=2) for x in outputs], dim=2
             ).permute(0, 2, 1)
             # Always decode output for inference
-            outputs_tensor = self.decode_outputs(outputs_tensor, xin[0].type())
+            outputs_tensor = self.decode_outputs(
+                outputs_tensor,
+                xin[0].type(),
+            )
             return outputs_tensor
 
     def get_output_and_grid(self, output, k, stride, dtype):
+        """get_output_and_grid"""
         grid = self.grids[k]
 
         batch_size = output.shape[0]
@@ -378,8 +382,13 @@ class YOLOXHead(nn.Module):  # pylint: disable=too-many-instance-attributes
         hsize, wsize = output.shape[-2:]
         if grid.shape[2:4] != output.shape[2:4]:
             yv, xv = meshgrid([torch.arange(hsize), torch.arange(wsize)])
-            grid = torch.stack((xv, yv), 2).view(1, 1, hsize, wsize, 2).type(dtype)
-            self.grids[k] = grid
+            if dtype.startswith("torch.mps"):
+                grid = torch.stack((xv, yv), 2).view(1, 1, hsize, wsize, 2).to("mps")
+                self.grids[k] = grid.to("mps")
+                output = output.to("mps")
+            else:
+                grid = torch.stack((xv, yv), 2).view(1, 1, hsize, wsize, 2).type(dtype)
+                self.grids[k] = grid
 
         output = output.view(batch_size, 1, n_ch, hsize, wsize)
         output = output.permute(0, 1, 3, 4, 2).reshape(batch_size, hsize * wsize, -1)
@@ -412,9 +421,13 @@ class YOLOXHead(nn.Module):  # pylint: disable=too-many-instance-attributes
             grids.append(grid)
             shape = grid.shape[:2]
             strides.append(torch.full((*shape, 1), stride))
-
-        grids_tensor = torch.cat(grids, dim=1).type(dtype)
-        strides_tensor = torch.cat(strides, dim=1).type(dtype)
+        if dtype.startswith("torch.mps"):
+            grids_tensor = torch.cat(grids, dim=1).to("mps")
+            strides_tensor = torch.cat(strides, dim=1).to("mps")
+            outputs = outputs.to("mps")
+        else:
+            grids_tensor = torch.cat(grids, dim=1).type(dtype)
+            strides_tensor = torch.cat(strides, dim=1).type(dtype)
 
         outputs[..., :2] = (outputs[..., :2] + grids_tensor) * strides_tensor
         outputs[..., 2:4] = torch.exp(outputs[..., 2:4]) * strides_tensor
@@ -662,11 +675,11 @@ class YOLOXHead(nn.Module):  # pylint: disable=too-many-instance-attributes
         ) = self.simota_matching(cost, pair_wise_ious, gt_classes, num_gt, fg_mask)
         del pair_wise_cls_loss, cost, pair_wise_ious, pair_wise_ious_loss
 
-        if mode == "cpu":
-            gt_matched_classes = gt_matched_classes.cuda()
-            fg_mask = fg_mask.cuda()
-            pred_ious_this_matching = pred_ious_this_matching.cuda()
-            matched_gt_inds = matched_gt_inds.cuda()
+        # if mode == "cpu":
+        #     gt_matched_classes = gt_matched_classes.cuda()
+        #     fg_mask = fg_mask.cuda()
+        #     pred_ious_this_matching = pred_ious_this_matching.cuda()
+        #     matched_gt_inds = matched_gt_inds.cuda()
 
         return (
             gt_matched_classes,
