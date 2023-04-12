@@ -3,6 +3,7 @@ pytorch:
     _target_: src.model.pytorch_model.PTObjectDetectionModel
   depth: 0.33
   width: 0.25
+  ckpt_file: "data/yolox_nano.pth"
   fine_tune: False
   image_size: ${data_module.dataset.image_size}
   num_classes: ${data_module.dataset.num_classes}

@@ -117,6 +117,7 @@ class PTObjectDetectionModel(PTModel):
     """
 
     def __init__(self, cfg: DictConfig) -> None:
+        """__init__"""
         super().__init__(cfg)
 
         self.model = self.create_model()
@@ -126,7 +127,7 @@ class PTObjectDetectionModel(PTModel):
     def create_model(self) -> Union[nn.Module, Callable]:
         """Create the model sequentially."""
 
-        def init_yolo(M):
+        def init_yolo(M) -> None:
             for m in M.modules():
                 if isinstance(m, nn.BatchNorm2d):
                     m.eps = 1e-3
@@ -138,6 +139,15 @@ class PTObjectDetectionModel(PTModel):
                 self.model_config.depth,
                 self.model_config.width,
             )
+            # self.model.load_state_dict(
+            #     torch.load(
+            #         self.model_config.ckpt_file, map_location=self.model_config.device
+            #     )["model"]
+            # )
+            ckpt = torch.load(
+                self.model_config.ckpt_file, map_location=self.model_config.device
+            )["model"]
+            self.model = load_ckpt(self.model, ckpt)
 
         self.model.apply(init_yolo)
         self.model.head.initialize_biases(1e-2)  # type: ignore
@@ -146,9 +156,11 @@ class PTObjectDetectionModel(PTModel):
         return self.model
 
     def create_head(self, in_features: int) -> nn.Module:
+        """Modify the head of the model."""
         return self.model
 
     def create_backbone(self) -> Union[nn.Module, Callable]:
+        """Create the backbone of the model."""
         return self.model
 
     def forward(
@@ -158,3 +170,26 @@ class PTObjectDetectionModel(PTModel):
         outputs = self.model(inputs, targets)
 
         return outputs
+
+
+def load_ckpt(model, ckpt):
+    """load_ckpt"""
+    model_state_dict = model.state_dict()
+    load_dict = {}
+    for key_model, v in model_state_dict.items():
+        if key_model not in ckpt:
+            # logger.warning(
+            #     f"{key_model} is not in the ckpt. Please double check and see if this is desired."
+            # )
+            continue
+        v_ckpt = ckpt[key_model]
+        if v.shape != v_ckpt.shape:
+            logger.warning(
+                f"Shape of {key_model} in checkpoint is {v_ckpt.shape}, "
+                f"while shape of {key_model} in model is {v.shape}."
+            )
+            continue
+        load_dict[key_model] = v_ckpt
+
+    model.load_state_dict(load_dict, strict=False)
+    return model
