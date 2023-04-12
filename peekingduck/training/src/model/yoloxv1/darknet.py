@@ -27,23 +27,37 @@
 # limitations under the License.
 
 # Copyright (c) Megvii Inc. All rights reserved.
-
+"""Backbone for YOLOPAFPN."""
+from typing import Tuple
+import torch
 from torch import nn
 
 from .network_blocks import BaseConv, CSPLayer, DWConv, Focus, ResLayer, SPPBottleneck
 
 
 class Darknet(nn.Module):
+    """Modified CSPNet with SiLU activation.
+
+    Args:
+        dep_mul (float): Depth multiplier, used to determine the number of
+            Bottlenecks in `CSPLayer`.
+        wid_mul (float): Width multiplier, used to determine the number of
+            `in_channels` and `out_channels` in `BaseConv`.
+        out_features (Tuple[str, str, str]): Selects the desired outputs in
+            `forward()`. `YOLOPAFPN` creates `CSPDarknet` with
+            `out_features = ("dark3", "dark4", "dark5")`.
+    """
+
     # number of blocks from dark2 to dark5.
     depth2blocks = {21: [1, 2, 2, 1], 53: [2, 8, 8, 4]}
 
     def __init__(
         self,
-        depth,
-        in_channels=3,
-        stem_out_channels=32,
-        out_features=("dark3", "dark4", "dark5"),
-    ):
+        depth: int,
+        in_channels: int = 3,
+        stem_out_channels: int = 32,
+        out_features: Tuple[str, str, str] = ("dark3", "dark4", "dark5"),
+    ) -> None:
         """
         Args:
             depth (int): depth of darknet used in model, usually use [21, 53] for this param.
@@ -121,14 +135,26 @@ class Darknet(nn.Module):
 
 
 class CSPDarknet(nn.Module):
+    """Modified CSPNet with SiLU activation.
+
+    Args:
+        dep_mul (float): Depth multiplier, used to determine the number of
+            Bottlenecks in `CSPLayer`.
+        wid_mul (float): Width multiplier, used to determine the number of
+            `in_channels` and `out_channels` in `BaseConv`.
+        out_features (Tuple[str, str, str]): Selects the desired outputs in
+            `forward()`. `YOLOPAFPN` creates `CSPDarknet` with
+            `out_features = ("dark3", "dark4", "dark5")`.
+    """
+
     def __init__(
         self,
-        dep_mul,
-        wid_mul,
-        out_features=("dark3", "dark4", "dark5"),
-        depthwise=False,
-        act="silu",
-    ):
+        dep_mul: float,
+        wid_mul: float,
+        out_features: Tuple[str, str, str] = ("dark3", "dark4", "dark5"),
+        depthwise: bool = False,
+        act: str = "silu",
+    ) -> None:
         super().__init__()
         assert out_features, "please provide output features of Darknet"
         self.out_features = out_features
@@ -190,7 +216,7 @@ class CSPDarknet(nn.Module):
             ),
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         outputs = {}
         x = self.stem(x)
         outputs["stem"] = x

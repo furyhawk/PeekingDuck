@@ -27,8 +27,11 @@
 # limitations under the License.
 
 # Copyright (c) Megvii Inc. All rights reserved.
+"""YOLOX model with its backbone (YOLOFAPN) and head (YOLOXHead).
+"""
 
 import math
+from typing import Any, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -42,15 +45,22 @@ from .network_blocks import BaseConv, DWConv
 
 
 class YOLOXHead(nn.Module):
+    """Decoupled head.
+
+    The decoupled head contains two parallel branches for classification and
+    regression tasks. An IoU branch is added to the regression branch after
+    the conv layers.
+    """
+
     def __init__(
         self,
-        num_classes,
-        width=1.0,
-        strides=[8, 16, 32],
-        in_channels=[256, 512, 1024],
-        act="silu",
-        depthwise=False,
-    ):
+        num_classes: int,
+        width: float = 1.0,
+        strides: List[int] = [8, 16, 32],
+        in_channels: List[int] = [256, 512, 1024],
+        act: str = "silu",
+        depthwise: bool = False,
+    ) -> None:
         """
         Args:
             act (str): activation type of conv. Defalut value: "silu".
@@ -154,7 +164,8 @@ class YOLOXHead(nn.Module):
         self.strides = strides
         self.grids = [torch.zeros(1)] * len(in_channels)
 
-    def initialize_biases(self, prior_prob):
+    def initialize_biases(self, prior_prob) -> None:
+        """initialize_biases"""
         for conv in self.cls_preds:
             b = conv.bias.view(1, -1)
             b.data.fill_(-math.log((1 - prior_prob) / prior_prob))
@@ -165,7 +176,25 @@ class YOLOXHead(nn.Module):
             b.data.fill_(-math.log((1 - prior_prob) / prior_prob))
             conv.bias = torch.nn.Parameter(b.view(-1), requires_grad=True)
 
-    def forward(self, xin, labels=None, imgs=None):
+    def forward(
+        self,
+        xin: Tuple[torch.Tensor, torch.Tensor, torch.Tensor],
+        labels: Optional[Any] = None,
+        imgs: Optional[Any] = None,
+    ) -> torch.Tensor:
+        """Defines the computation performed at every call.
+
+        Args:
+            xin (Tuple[torch.Tensor, torch.Tensor, torch.Tensor]): Inputs from
+                `YOLOPAFPN`, contains 3 levels of FPN features (256, 512,
+                and 1024).
+
+        Returns:
+            (torch.Tensor): The decoded output with the shape (B,D,85) where
+            B is the batch size, D is the number of detections. The 85 columns
+            consist of the following values:
+            [x, y, w, h, conf, (cls_conf of the 80 COCO classes)].
+        """
         outputs = []
         origin_preds = []
         x_shifts = []
@@ -262,7 +291,22 @@ class YOLOXHead(nn.Module):
         output[..., 2:4] = torch.exp(output[..., 2:4]) * stride
         return output, grid
 
-    def decode_outputs(self, outputs, dtype):
+    def decode_outputs(self, outputs: torch.Tensor, dtype: str) -> torch.Tensor:
+        """Converts raw output to [x, y, w, h] format.
+
+        Args:
+            outputs (torch.Tensor): Raw output tensor. The first 4 columns
+                contain 2 offsets in terms of the top-left corner of the grid,
+                and the height and width of the predicted box. The rest of the
+                columns are not accessed in this method.
+            dtype (str): Data type.
+
+        Returns:
+            (torch.Tensor): The decoded output with the shape (B,D,85) where
+            B is the batch size, D is the number of detections. The 85 columns
+            consist of the following values:
+            [x, y, w, h, conf, (cls_conf of the 80 COCO classes)].
+        """
         grids = []
         strides = []
         for (hsize, wsize), stride in zip(self.hw, self.strides):
@@ -299,8 +343,9 @@ class YOLOXHead(nn.Module):
         labels,
         outputs,
         origin_preds,
-        dtype,
+        dtype: str,
     ):
+        """get_losses"""
         bbox_preds = outputs[:, :, :4]  # [batch, n_anchors_all, 4]
         obj_preds = outputs[:, :, 4:5]  # [batch, n_anchors_all, 1]
         cls_preds = outputs[:, :, 5:]  # [batch, n_anchors_all, n_cls]
@@ -586,8 +631,8 @@ class YOLOXHead(nn.Module):
         return anchor_filter, geometry_relation
 
     def simota_matching(self, cost, pair_wise_ious, gt_classes, num_gt, fg_mask):
-        # Dynamic K
-        # ---------------------------------------------------------------
+        """Dynamic K
+        ---------------------------------------------------------------"""
         matching_matrix = torch.zeros_like(cost, dtype=torch.uint8)
 
         n_candidate_k = min(10, pair_wise_ious.size(1))

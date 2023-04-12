@@ -28,6 +28,7 @@
 
 # Copyright (c) Megvii Inc. All rights reserved.
 
+from typing import Tuple
 import torch
 import torch.nn as nn
 
@@ -42,13 +43,13 @@ class YOLOPAFPN(nn.Module):
 
     def __init__(
         self,
-        depth=1.0,
-        width=1.0,
+        depth: float = 1.0,
+        width: float = 1.0,
         in_features=("dark3", "dark4", "dark5"),
         in_channels=[256, 512, 1024],
         depthwise=False,
-        act="silu",
-    ):
+        act: str = "silu",
+    ) -> None:
         super().__init__()
         self.backbone = CSPDarknet(depth, width, depthwise=depthwise, act=act)
         self.in_features = in_features
@@ -106,7 +107,9 @@ class YOLOPAFPN(nn.Module):
             act=act,
         )
 
-    def forward(self, input):
+    def forward(
+        self, input: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Args:
             inputs: input images.

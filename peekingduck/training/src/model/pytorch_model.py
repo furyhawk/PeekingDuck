@@ -124,7 +124,7 @@ class PTObjectDetectionModel(PTModel):
 
         self.model = self.create_model()
 
-        logger.info(f"Successfully created model:")
+        logger.info("Successfully created model:")
 
     def create_model(self) -> Union[nn.Module, Callable]:
         """Create the model sequentially."""

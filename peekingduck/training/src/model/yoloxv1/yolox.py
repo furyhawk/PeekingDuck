@@ -28,6 +28,10 @@
 
 # Copyright (c) Megvii Inc. All rights reserved.
 
+"""YOLOX model with its backbone (YOLOFAPN) and head (YOLOXHead)."""
+from typing import Optional, Union
+
+import torch
 import torch.nn as nn
 
 from .yolo_head import YOLOXHead
@@ -41,7 +45,9 @@ class YOLOX(nn.Module):
     and detection results during test.
     """
 
-    def __init__(self, backbone=None, head=None):
+    def __init__(
+        self, backbone: Optional[nn.Module] = None, head: Optional[nn.Module] = None
+    ) -> None:
         super().__init__()
         if backbone is None:
             backbone = YOLOPAFPN()
@@ -51,14 +57,27 @@ class YOLOX(nn.Module):
         self.backbone = backbone
         self.head = head
 
-    def forward(self, x, targets=None):
+    def forward(
+        self, inputs: torch.Tensor, targets: Optional[torch.Tensor] = None
+    ) -> Union[dict, torch.Tensor]:
+        """Defines the computation performed at every call.
+
+        Args:
+            inputs (torch.Tensor): Input image.
+
+        Returns:
+            (torch.Tensor): The decoded output with the shape (B,D,85) where
+            B is the batch size, D is the number of detections. The 85 columns
+            consist of the following values:
+            [x, y, w, h, conf, (cls_conf of the 80 COCO classes)].
+        """
         # fpn output content features of [dark3, dark4, dark5]
-        fpn_outs = self.backbone(x)
+        fpn_outs = self.backbone(inputs)
 
         if self.training:
             assert targets is not None
             loss, iou_loss, conf_loss, cls_loss, l1_loss, num_fg = self.head(
-                fpn_outs, targets, x
+                fpn_outs, targets, inputs
             )
             outputs = {
                 "total_loss": loss,
