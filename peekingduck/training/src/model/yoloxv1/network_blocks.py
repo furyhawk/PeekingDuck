@@ -32,15 +32,19 @@ import torch
 import torch.nn as nn
 
 
+# pylint: disable=too-many-instance-attributes, too-many-arguments
+# pylint: disable=logging-fstring-interpolation, invalid-name
 class SiLU(nn.Module):
     """export-friendly version of nn.SiLU()"""
 
     @staticmethod
-    def forward(x):
+    def forward(x: torch.Tensor):
+        """forward"""
         return x * torch.sigmoid(x)
 
 
-def get_activation(name="silu", inplace=True):
+def get_activation(name: str = "silu", inplace: bool = True):
+    """get_activation"""
     if name == "silu":
         module = nn.SiLU(inplace=inplace)
     elif name == "relu":
@@ -56,7 +60,14 @@ class BaseConv(nn.Module):
     """A Conv2d -> Batchnorm -> silu/leaky relu block"""
 
     def __init__(
-        self, in_channels, out_channels, ksize, stride, groups=1, bias=False, act="silu"
+        self,
+        in_channels: int,
+        out_channels: int,
+        ksize: int,
+        stride: int,
+        groups: int = 1,
+        bias: bool = False,
+        act: str = "silu",
     ):
         super().__init__()
         # same padding
@@ -73,17 +84,26 @@ class BaseConv(nn.Module):
         self.bn = nn.BatchNorm2d(out_channels)
         self.act = get_activation(act, inplace=True)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
+        """forward"""
         return self.act(self.bn(self.conv(x)))
 
-    def fuseforward(self, x):
+    def fuseforward(self, x: torch.Tensor):
+        """fuseforward"""
         return self.act(self.conv(x))
 
 
 class DWConv(nn.Module):
     """Depthwise Conv + Conv"""
 
-    def __init__(self, in_channels, out_channels, ksize, stride=1, act="silu"):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        ksize: int,
+        stride: int = 1,
+        act: str = "silu",
+    ) -> None:
         super().__init__()
         self.dconv = BaseConv(
             in_channels,
@@ -97,22 +117,24 @@ class DWConv(nn.Module):
             in_channels, out_channels, ksize=1, stride=1, groups=1, act=act
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
+        """forward"""
         x = self.dconv(x)
         return self.pconv(x)
 
 
 class Bottleneck(nn.Module):
-    # Standard bottleneck
+    """Standard bottleneck"""
+
     def __init__(
         self,
-        in_channels,
-        out_channels,
-        shortcut=True,
-        expansion=0.5,
-        depthwise=False,
-        act="silu",
-    ):
+        in_channels: int,
+        out_channels: int,
+        shortcut: bool = True,
+        expansion: float = 0.5,
+        depthwise: bool = False,
+        act: str = "silu",
+    ) -> None:
         super().__init__()
         hidden_channels = int(out_channels * expansion)
         Conv = DWConv if depthwise else BaseConv
@@ -120,7 +142,8 @@ class Bottleneck(nn.Module):
         self.conv2 = Conv(hidden_channels, out_channels, 3, stride=1, act=act)
         self.use_add = shortcut and in_channels == out_channels
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
+        """forward"""
         y = self.conv2(self.conv1(x))
         if self.use_add:
             y = y + x
@@ -130,7 +153,7 @@ class Bottleneck(nn.Module):
 class ResLayer(nn.Module):
     "Residual layer with `in_channels` inputs."
 
-    def __init__(self, in_channels: int):
+    def __init__(self, in_channels: int) -> None:
         super().__init__()
         mid_channels = in_channels // 2
         self.layer1 = BaseConv(
@@ -140,7 +163,8 @@ class ResLayer(nn.Module):
             mid_channels, in_channels, ksize=3, stride=1, act="lrelu"
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
+        """forward"""
         out = self.layer2(self.layer1(x))
         return x + out
 
@@ -149,8 +173,12 @@ class SPPBottleneck(nn.Module):
     """Spatial pyramid pooling layer used in YOLOv3-SPP"""
 
     def __init__(
-        self, in_channels, out_channels, kernel_sizes=(5, 9, 13), activation="silu"
-    ):
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_sizes=(5, 9, 13),
+        activation: str = "silu",
+    ) -> None:
         super().__init__()
         hidden_channels = in_channels // 2
         self.conv1 = BaseConv(in_channels, hidden_channels, 1, stride=1, act=activation)
@@ -163,7 +191,8 @@ class SPPBottleneck(nn.Module):
         conv2_channels = hidden_channels * (len(kernel_sizes) + 1)
         self.conv2 = BaseConv(conv2_channels, out_channels, 1, stride=1, act=activation)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """forward"""
         x = self.conv1(x)
         x = torch.cat([x] + [m(x) for m in self.m], dim=1)
         x = self.conv2(x)
@@ -175,14 +204,14 @@ class CSPLayer(nn.Module):
 
     def __init__(
         self,
-        in_channels,
-        out_channels,
-        n=1,
-        shortcut=True,
-        expansion=0.5,
-        depthwise=False,
-        act="silu",
-    ):
+        in_channels: int,
+        out_channels: int,
+        n: int = 1,
+        shortcut: bool = True,
+        expansion: float = 0.5,
+        depthwise: bool = False,
+        act: str = "silu",
+    ) -> None:
         """
         Args:
             in_channels (int): input channels.
@@ -203,7 +232,8 @@ class CSPLayer(nn.Module):
         ]
         self.m = nn.Sequential(*module_list)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
+        """forward"""
         x_1 = self.conv1(x)
         x_2 = self.conv2(x)
         x_1 = self.m(x_1)
@@ -214,12 +244,19 @@ class CSPLayer(nn.Module):
 class Focus(nn.Module):
     """Focus width and height information into channel space."""
 
-    def __init__(self, in_channels, out_channels, ksize=1, stride=1, act="silu"):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        ksize: int = 1,
+        stride: int = 1,
+        act: str = "silu",
+    ) -> None:
         super().__init__()
         self.conv = BaseConv(in_channels * 4, out_channels, ksize, stride, act=act)
 
-    def forward(self, x):
-        # shape of x (b,c,w,h) -> y(b,4c,w/2,h/2)
+    def forward(self, x: torch.Tensor):
+        """shape of x (b,c,w,h) -> y(b,4c,w/2,h/2)"""
         patch_top_left = x[..., ::2, ::2]
         patch_top_right = x[..., ::2, 1::2]
         patch_bot_left = x[..., 1::2, ::2]

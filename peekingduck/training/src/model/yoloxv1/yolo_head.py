@@ -34,8 +34,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from src.model.yoloxv1.yolox_files.compat import meshgrid
-from src.model.yoloxv1.yolox_files.boxes import bboxes_iou
+from src.model.yoloxv1.compat import meshgrid
+from src.model.yoloxv1.boxes import bboxes_iou
 
 from .losses import IOUloss
 from .network_blocks import BaseConv, DWConv

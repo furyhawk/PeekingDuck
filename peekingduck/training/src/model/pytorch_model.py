@@ -25,13 +25,13 @@ from omegaconf import DictConfig
 
 from src.model.pytorch_base import PTModel
 
-# from src.model.yoloxv1.yolox_files.model import YOLOX
 from src.model.yoloxv1 import YOLOX, YOLOPAFPN, YOLOXHead
 from src.utils.general_utils import rsetattr
 from src.utils.pt_model_utils import freeze_all_params
 from configs import LOGGER_NAME
 
-# pylint: disable=too-many-instance-attributes, too-many-arguments, logging-fstring-interpolation, invalid-name
+# pylint: disable=too-many-instance-attributes, too-many-arguments
+# pylint: disable=logging-fstring-interpolation, invalid-name
 logger = logging.getLogger(LOGGER_NAME)
 
 
@@ -155,11 +155,6 @@ class PTObjectDetectionModel(PTModel):
             #     self.model_config.num_classes,
             #     self.model_config.depth,
             #     self.model_config.width,
-            # )
-            # self.model.load_state_dict(
-            #     torch.load(
-            #         self.model_config.ckpt_file, map_location=self.model_config.device
-            #     )["model"]
             # )
             ckpt = torch.load(
                 self.model_config.ckpt_file, map_location=self.model_config.device
