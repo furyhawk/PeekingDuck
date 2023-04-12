@@ -46,8 +46,8 @@ def init_trainer(cfg: DictConfig) -> Trainer:
     )
     return trainer
 
-def run(cfg: DictConfig) -> None:
 
+def run(cfg: DictConfig) -> None:
     """Run the Trainer Pipeline"""
     assert cfg.framework in [
         "pytorch",

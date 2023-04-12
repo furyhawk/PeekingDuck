@@ -24,7 +24,9 @@ from torch import nn
 from omegaconf import DictConfig
 
 from src.model.pytorch_base import PTModel
-from src.model.yoloxv1.yolox_files.model import YOLOX
+
+# from src.model.yoloxv1.yolox_files.model import YOLOX
+from src.model.yoloxv1 import YOLOX, YOLOPAFPN, YOLOXHead
 from src.utils.general_utils import rsetattr
 from src.utils.pt_model_utils import freeze_all_params
 from configs import LOGGER_NAME
@@ -134,11 +136,26 @@ class PTObjectDetectionModel(PTModel):
                     m.momentum = 0.03
 
         if getattr(self, "model", None) is None:
-            self.model = YOLOX(
-                self.model_config.num_classes,
+            in_channels = [256, 512, 1024]
+            # NANO model use depthwise = True, which is main difference.
+            backbone = YOLOPAFPN(
                 self.model_config.depth,
                 self.model_config.width,
+                in_channels=in_channels,
+                depthwise=True,
             )
+            head = YOLOXHead(
+                self.model_config.num_classes,
+                self.model_config.width,
+                in_channels=in_channels,
+                depthwise=True,
+            )
+            self.model = YOLOX(backbone, head)
+            # self.model = YOLOX(
+            #     self.model_config.num_classes,
+            #     self.model_config.depth,
+            #     self.model_config.width,
+            # )
             # self.model.load_state_dict(
             #     torch.load(
             #         self.model_config.ckpt_file, map_location=self.model_config.device
@@ -178,9 +195,9 @@ def load_ckpt(model, ckpt):
     load_dict = {}
     for key_model, v in model_state_dict.items():
         if key_model not in ckpt:
-            # logger.warning(
-            #     f"{key_model} is not in the ckpt. Please double check and see if this is desired."
-            # )
+            logger.warning(
+                f"{key_model} is not in the ckpt. Please double check and see if this is desired."
+            )
             continue
         v_ckpt = ckpt[key_model]
         if v.shape != v_ckpt.shape:
