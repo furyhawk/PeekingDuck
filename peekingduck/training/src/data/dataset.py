@@ -293,31 +293,84 @@ class PTObjectDetectionDataset(Dataset):
             "debug",
             "test",
         ], f"Invalid stage {self.stage}."
-
+        # try:
         image_path: str = self.image_path[index]
         image: Tensor = cv2.imread(image_path)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        image = self.apply_image_transforms(image)
 
         # Get target for all modes except for test dataset.
         # If test, replace target with dummy ones as placeholder.
-        training_data = (image, np.zeros((self.max_labels, 5), dtype=np.float32))
         if self.stage != "test" and self.label_path is not None:
             label_path = self.label_path[index]
             labels = self.get_labels(label_path, self.cfg.dataset.num_classes)
-            training_data = (image, labels)
+            training_data = self.apply_image_transforms(image, labels)
+        else:  # Test dataset
+            image = self.apply_image_transforms(image)
+            training_data = (
+                image,
+                np.zeros((self.max_labels, 5), dtype=np.float32),
+            )
 
         return training_data
+        # except Exception as e:
+        #     logger.info(f"WARNING ⚠️ image_path: {self.image_path[index]}")
+        #     image_path: str = self.image_path[index]
+        #     image: Tensor = cv2.imread(image_path)
+        #     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        #     transform = A.Compose(
+        #         [
+        #             A.augmentations.crops.transforms.RandomResizedCrop(
+        #                 height=0.5, width=1
+        #             )
+        #         ],
+        #     )
+        #     #         - _target_: albumentations.augmentations.crops.transforms.RandomResizedCrop
+        #     #   height: ${data_module.dataset.image_size}
+        #     #   width: ${data_module.dataset.image_size}
+        #     #   scale: [0.7, 1]
+        #     #   ratio: [1, 1]
+        #     # # - _target_: albumentations.augmentations.geometric.transforms.Flip
+        #     # - _target_: albumentations.augmentations.transforms.Normalize
+        #     #   mean: [0.4913997551666284, 0.48215855929893703, 0.4465309133731618]
+        #     #   std: [0.24703225141799082, 0.24348516474564, 0.26158783926049628]
+        #     # - _target_: albumentations.pytorch.transforms.ToTensorV2
+        #     training_data = (
+        #         image,
+        #         np.zeros((self.max_labels, 5), dtype=np.float32),
+        #     )
+        #     return training_data
 
-    def apply_image_transforms(self, image: torch.Tensor) -> Tensor:
+    def apply_image_transforms(self, image: torch.Tensor, labels: Optional[Any] = None):
         """Apply transforms to the image."""
         if self.transforms and isinstance(self.transforms, A.Compose):
-            image = self.transforms(image=image)["image"]
+            if labels is not None:
+                bboxes = [x[1:] for x in labels]
+                category_ids = [x[0] for x in labels]
+                # print(f"bboxes{bboxes}category_ids{category_ids}")
+                transformed = self.transforms(
+                    image=image, bboxes=bboxes, category_ids=category_ids
+                )
+                image = transformed["image"]
+                bboxes = transformed["bboxes"]
+                category_ids = transformed["category_ids"]
+
+                targets_t = np.hstack((np.array(category_ids).reshape(-1, 1), bboxes))
+                padded_labels = np.zeros((self.max_labels, 5))
+                padded_labels[range(len(targets_t))[: self.max_labels]] = targets_t[
+                    : self.max_labels
+                ]
+                padded_labels = np.ascontiguousarray(padded_labels, dtype=np.float32)
+                training_data = (image, padded_labels)
+            else:
+                training_data = self.transforms(image=image)["image"]
         elif self.transforms and isinstance(self.transforms, T.Compose):
-            image = self.transforms(image)
+            training_data = (self.transforms(image), np.zeros((0, 5), dtype=np.float32))
         else:
-            image = torch.from_numpy(image).permute(2, 0, 1)  # convert HWC to CHW
-        return image
+            training_data = (
+                torch.from_numpy(image).permute(2, 0, 1),
+                np.zeros((0, 5), dtype=np.float32),
+            )  # convert HWC to CHW
+        return training_data
 
     def apply_target_transforms(
         self, target: torch.Tensor, dtype: torch.dtype = torch.long
@@ -373,8 +426,41 @@ class PTObjectDetectionDataset(Dataset):
                         ), f"labels require 5 columns, {lb.shape[1]} columns detected"
                         assert (
                             lb[:, 1:] <= 1
-                        ).all(), "non-normalized or out of bounds coordinates"
-                        f" {lb[:, 1:][lb[:, 1:] > 1]}"
+                        ).all(), f"non-normalized or out of bounds coordinates {lb[:, 1:][lb[:, 1:] > 1]}"
+
+                        check1 = (lb[:, 1] - lb[:, 3] / 2) < 0
+                        if (check1).any():
+                            # print(f"⚠️ 1 3 < 0 {lb[:, 1:][check1]}")
+                            lb[:, 3][check1] = (
+                                lb[:, 3][check1]
+                                + (lb[:, 1][check1] - lb[:, 3][check1] / 2) * 10
+                            )
+
+                        check2 = (lb[:, 2] - lb[:, 4] / 2) < 0
+                        if (check2).any():
+                            # print(f"⚠️ 2 4 < 0 {lb[:, 1:][check2]}")
+                            lb[:, 4][check2] = (
+                                lb[:, 4][check2]
+                                + (lb[:, 2][check2] - lb[:, 4][check2] / 2) * 10
+                            )
+
+                        # check3 = (lb[:, 1] + lb[:, 3] / 2) > 1
+                        # if (check3).any():
+                        # print(f"⚠️ 1 3 > 1 {lb[:, 1:][check3]}")
+                        # lb[:, 3][check3] = (
+                        #     lb[:, 3][check3]
+                        #     + (lb[:, 1][check3] + lb[:, 3][check3] / 2)
+                        #     - 1
+                        # )
+
+                        # check4 = (lb[:, 2] + lb[:, 4] / 2) > 1
+                        # if (check4).any():
+                        # print(f"⚠️ 2 4 > 1 {lb[:, 1:][check4]}")
+                        # lb[:, 4][check4] = (
+                        #     lb[:, 4][check4]
+                        #     + (lb[:, 2][check4] + lb[:, 4][check4] / 2)
+                        #     - 1
+                        # )
 
                         # All labels
                         max_cls = int(lb[:, 0].max())  # max label count
@@ -383,6 +469,9 @@ class PTObjectDetectionDataset(Dataset):
                             f"Possible class labels are 0-{num_cls - 1}{lb}"
                         )
                         assert (lb >= 0).all(), f"negative label values {lb[lb < 0]}"
+                        assert (
+                            lb[:, 1:] >= 0
+                        ).all(), f"non-normalized or out of bounds coordinates {lb[:, 1:][lb[:, 1:] < 0]}"
                         _, i = np.unique(lb, axis=0, return_index=True)
                         if len(i) < nl:  # duplicate row check
                             lb = lb[i]  # remove duplicates
@@ -404,13 +493,15 @@ class PTObjectDetectionDataset(Dataset):
         except Exception as e:
             nc = 1
             logger.info(f"WARNING ⚠️ {lb_file}: ignoring corrupt image/label: {e}")
+            # return np.zeros((0, 5), dtype=np.float32)
 
     def get_labels(self, label_path, num_cls):
         """get labels"""
+        # print(f"label_path{label_path}")
         targets_t = self.verify_label(label_path, num_cls)
-        padded_labels = np.zeros((self.max_labels, 5))
-        padded_labels[range(len(targets_t))[: self.max_labels]] = targets_t[
-            : self.max_labels
-        ]
-        padded_labels = np.ascontiguousarray(padded_labels, dtype=np.float32)
-        return padded_labels
+        # padded_labels = np.zeros((self.max_labels, 5))
+        # padded_labels[range(len(targets_t))[: self.max_labels]] = targets_t[
+        #     : self.max_labels
+        # ]
+        # padded_labels = np.ascontiguousarray(padded_labels, dtype=np.float32)
+        return targets_t

@@ -28,12 +28,14 @@
 
 # Copyright (c) Megvii Inc. All rights reserved.
 
+import cv2
 import numpy as np
 
 import torch
 import torchvision
 
 __all__ = [
+    "preproc",
     "filter_box",
     "postprocess",
     "bboxes_iou",
@@ -42,6 +44,25 @@ __all__ = [
     "xyxy2xywh",
     "xyxy2cxcywh",
 ]
+
+
+def preproc(img, input_size, swap=(2, 0, 1)):
+    if len(img.shape) == 3:
+        padded_img = np.ones((input_size[0], input_size[1], 3), dtype=np.uint8) * 114
+    else:
+        padded_img = np.ones(input_size, dtype=np.uint8) * 114
+
+    r = min(input_size[0] / img.shape[0], input_size[1] / img.shape[1])
+    resized_img = cv2.resize(
+        img,
+        (int(img.shape[1] * r), int(img.shape[0] * r)),
+        interpolation=cv2.INTER_LINEAR,
+    ).astype(np.uint8)
+    padded_img[: int(img.shape[0] * r), : int(img.shape[1] * r)] = resized_img
+
+    padded_img = padded_img.transpose(swap)
+    padded_img = np.ascontiguousarray(padded_img, dtype=np.float32)
+    return padded_img, r
 
 
 def filter_box(output, scale_range):
@@ -56,7 +77,7 @@ def filter_box(output, scale_range):
 
 
 def postprocess(
-    prediction, num_classes, conf_thre=0.7, nms_thre=0.45, class_agnostic=False
+    prediction, num_classes, conf_thre=0.000007, nms_thre=0.45, class_agnostic=False
 ):
     box_corner = prediction.new(prediction.shape)
     box_corner[:, :, 0] = prediction[:, :, 0] - prediction[:, :, 2] / 2
@@ -74,8 +95,8 @@ def postprocess(
         class_conf, class_pred = torch.max(
             image_pred[:, 5 : 5 + num_classes], 1, keepdim=True
         )
-
         conf_mask = (image_pred[:, 4] * class_conf.squeeze() >= conf_thre).squeeze()
+        # print(f"conf_mask{conf_mask}")#class_conf{class_conf}class_pred{class_pred}
         # Detections ordered as (x1, y1, x2, y2, obj_conf, class_conf, class_pred)
         detections = torch.cat((image_pred[:, :5], class_conf, class_pred.float()), 1)
         detections = detections[conf_mask]

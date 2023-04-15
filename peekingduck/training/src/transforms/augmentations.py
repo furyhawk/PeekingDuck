@@ -62,6 +62,40 @@ class ImageClassificationTransforms(Transforms):
         return self.cfg.transforms.debug_transforms
 
 
+class ObjectDetectionTransforms(Transforms):
+    """General Image Classification Transforms."""
+
+    def __init__(self, cfg: DictConfig) -> None:
+        super().__init__(cfg)
+        self.cfg: DictConfig = cfg
+
+    @property
+    def train_transforms(self) -> A.Compose:
+        """train_transforms"""
+        return A.Compose(
+            instantiate(self.cfg.train),
+            bbox_params=A.BboxParams(format="yolo", label_fields=["category_ids"]),
+        )
+
+    @property
+    def validation_transforms(self) -> A.Compose:
+        """validation_transforms"""
+        return A.Compose(
+            instantiate(self.cfg.test),
+            bbox_params=A.BboxParams(format="yolo", label_fields=["category_ids"]),
+        )
+
+    @property
+    def test_transforms(self) -> A.Compose:
+        """test_transforms"""
+        return A.Compose(instantiate(self.cfg.test))
+
+    @property
+    def debug_transforms(self) -> A.Compose:
+        """debug_transforms"""
+        return self.cfg.transforms.debug_transforms
+
+
 class TFPreprocessImage(ImageOnlyTransform):
     """Preprocessed numpy.array or a tf.Tensor with type float32.
         The images are converted from RGB to BGR,

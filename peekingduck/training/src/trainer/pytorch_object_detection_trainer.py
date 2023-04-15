@@ -15,9 +15,13 @@
 """pytorch trainer"""
 
 import logging
+import os
+import time
 from typing import Any, DefaultDict, Dict, List, Optional, Union
 from collections import defaultdict
+import cv2
 
+from albumentations.augmentations.transforms import Normalize
 from omegaconf import DictConfig
 from hydra.utils import instantiate
 from tqdm.auto import tqdm
@@ -34,6 +38,8 @@ from src.optimizers.adapter import OptimizersAdapter
 from src.callbacks.base import init_callbacks
 from src.callbacks.events import EVENTS
 from src.model.pytorch_base import PTModel
+from src.model.yoloxv1.boxes import postprocess, preproc
+from src.model.yoloxv1.visualize import vis
 from src.metrics.pytorch_metrics import PytorchMetrics
 from src.utils.general_utils import free_gpu_memory  # , init_logger
 from src.utils.pt_model_utils import set_trainable_layers, unfreeze_all_params
@@ -76,7 +82,7 @@ class PytorchTrainer:
         self.callbacks: list = []
         self.metrics: MetricCollection
         self.model: PTModel
-        self.scaler = torch.cuda.amp.GradScaler(enabled=True)
+        # self.scaler = torch.cuda.amp.GradScaler(enabled=True)
         self.optimizer: torch.optim.Optimizer
         self.scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None
 
@@ -113,6 +119,8 @@ class PytorchTrainer:
         self.model_config = model_config[self.framework]
         self.callbacks_config = callbacks_config[self.framework]
         self.metrics_config = metrics_config[self.framework]
+        self.num_classes = data_config.dataset.num_classes
+        self.cls_names = list(data_config.dataset.class_name_to_id.keys())
         self.train_params = self.trainer_config.global_train_params
         self.model_artifacts_dir = self.trainer_config.stores.model_artifacts_dir
         self.device = device
@@ -259,18 +267,15 @@ class PytorchTrainer:
             targets = targets.to(self.device, non_blocking=True)
 
             # reset gradients
-            # self.optimizer.zero_grad()
-
+            self.optimizer.zero_grad()
             # Forward pass logits
             # with torch.cuda.amp.autocast(enabled=self.amp_training):
             logits = self.model(inputs, targets)
 
             loss = logits["total_loss"]
-
-            self.optimizer.zero_grad()
-            self.scaler.scale(loss).backward()
-            self.scaler.step(self.optimizer)
-            self.scaler.update()
+            loss.backward()
+            self.optimizer.step()
+            # self.scaler.update()
 
             # curr_batch_train_loss = LossAdapter.compute_criterion(
             #     targets,
@@ -306,7 +311,7 @@ class PytorchTrainer:
         # losses_output = logits.detach().cpu()
         loss_str = ", ".join([f"{k}: {v:.1f}" for k, v in logits.items()])
         print(loss_str)  # loss.cpu().detach().item()
-        print(loss.detach().cpu().item())
+        # print(loss.detach().cpu().item())
 
         self._invoke_callbacks(EVENTS.TRAIN_LOADER_END.value)
         self._invoke_callbacks(EVENTS.TRAIN_EPOCH_END.value)
@@ -333,54 +338,80 @@ class PytorchTrainer:
         valid_bar = tqdm(validation_loader)
         valid_trues: List[torch.Tensor] = []
         valid_logits: List[torch.Tensor] = []
-        valid_preds: List[torch.Tensor] = []
-        valid_probs: List[torch.Tensor] = []
+        # valid_preds: List[torch.Tensor] = []
+        # valid_probs: List[torch.Tensor] = []
+        images_dt = []
+        outputs = []
 
         self._invoke_callbacks(EVENTS.VALID_LOADER_START.value)
-
+        std = torch.tensor([0.24703225141799082, 0.24348516474564, 0.26158783926049628])
+        mean = torch.tensor(
+            [0.4913997551666284, 0.48215855929893703, 0.4465309133731618]
+        )
+        unnormalize = Normalize((-mean / std).tolist(), (1.0 / std).tolist())
         with torch.no_grad():
-            for _, batch in enumerate(valid_bar, start=1):
+            for index, batch in enumerate(valid_bar, start=1):
                 self._invoke_callbacks(EVENTS.VALID_BATCH_START.value)
 
                 # unpack
                 inputs, targets = batch
+
+                for img in inputs:
+                    height, width = img.shape[:2]
+                    img_info = {"id": index}
+                    img_info["height"] = height
+                    img_info["width"] = width
+                    img = unnormalize(image=img.detach().numpy().transpose((1, 2, 0)))[
+                        "image"
+                    ]
+                    img_info["raw_img"] = img
+                    # img, ratio = preproc(img, (height, width))
+                    img_info["ratio"] = 1.0
+                    images_dt.append(img_info)
+
                 inputs = inputs.to(self.device, non_blocking=True)
                 targets = targets.to(self.device, non_blocking=True)
 
                 self.optimizer.zero_grad()  # reset gradients
                 logits = self.model(inputs)  # Forward pass logits
 
-                # y_valid_prob = get_sigmoid_softmax(self.trainer_config)(logits)
-                # y_valid_pred = torch.argmax(y_valid_prob, dim=1)
-
-                # curr_batch_val_loss = LossAdapter.compute_criterion(
-                #     targets,
-                #     logits,
-                #     criterion_params=self.trainer_config.criterion_params,
-                #     stage="validation",
-                # )
-                # Update loss metric, every batch is diff
-                # self.epoch_dict["validation"]["batch_loss"] = curr_batch_val_loss.item()
-
                 self._invoke_callbacks(EVENTS.VALID_BATCH_END.value)
                 # For OOF score and other computation.
                 valid_trues.extend(targets.cpu())
                 valid_logits.extend(logits.cpu())
-                # valid_preds.extend(y_valid_pred.cpu())
-                # valid_probs.extend(y_valid_prob.cpu())
-            print(f"_run_validation_epoch_valid_logits{logits.shape}")
-            print(f"_run_validation_epoch_valid_trues{targets.shape}")
-        # (
-        #     valid_trues_tensor,
-        #     valid_logits_tensor,
-        #     valid_preds_tensor,
-        #     valid_probs_tensor,
-        # ) = (
-        #     torch.vstack(tensors=valid_trues),
-        #     torch.vstack(tensors=valid_logits),
-        #     torch.vstack(tensors=valid_preds),
-        #     torch.vstack(tensors=valid_probs),
-        # )
+                # print(outputs)
+                # np.savetxt("postprocess.txt", outputs)
+                output = postprocess(logits, self.num_classes)
+                outputs.append(output)
+
+        print(f"_run_validation_epoch_outputs{len(outputs)}images_dt{len(images_dt)}")
+
+        for output, img_info in zip(outputs, images_dt):
+            result_image = self.visual(output[0], img_info)
+            # print(f"result_image{result_image}")
+            # print(f"output{len(output)}raw_img{img_info['raw_img'].shape}")
+            save_folder = os.path.join(
+                "YOLOX_outputs", time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime())
+            )
+            os.makedirs(save_folder, exist_ok=True)
+            save_file_name = os.path.join(
+                save_folder, os.path.basename(".".join([str(img_info["id"]), "png"]))
+            )
+            logger.info(f"Saving detection result in {save_file_name}")
+
+            # print(f"imm{result_image.shape}")
+            cv2.imwrite(save_file_name, result_image)
+
+        (
+            valid_trues_tensor,
+            valid_logits_tensor,
+        ) = (
+            torch.vstack(tensors=valid_trues),
+            torch.vstack(tensors=valid_logits),
+        )
+        print(f"_run_validation_epoch_valid_logits{valid_logits_tensor.shape}")
+        print(f"_run_validation_epoch_valid_trues{valid_trues_tensor.shape}")
+        # np.savetxt("postprocess.txt", outputs[0])
         # self.epoch_dict["validation"][
         #     "metrics"
         # ] = PytorchMetrics.get_classification_metrics(
@@ -402,6 +433,22 @@ class PytorchTrainer:
         #     }
         # )
         self._invoke_callbacks(EVENTS.VALID_EPOCH_END.value)
+
+    def visual(self, output, img_info, cls_conf=0.0000035):
+        ratio = img_info["ratio"]
+        img = img_info["raw_img"]
+        if output is None:
+            return img
+        output = output.numpy()
+
+        # preprocessing: resize
+        bboxes = output[:, 0:4] / ratio
+
+        cls = output[:, 6]
+        scores = output[:, 4] * output[:, 5]
+
+        vis_res = vis(img, bboxes, scores, cls, cls_conf, self.cls_names)
+        return vis_res
 
     def _invoke_callbacks(self, event_name: str) -> None:
         """Invoke the callbacks."""

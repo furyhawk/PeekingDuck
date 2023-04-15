@@ -15,10 +15,9 @@
 """Trainer Pipeline"""
 
 import logging
-import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 from time import perf_counter
-from numpy import dtype
+
 from omegaconf import DictConfig
 from hydra.utils import instantiate
 from configs import LOGGER_NAME
