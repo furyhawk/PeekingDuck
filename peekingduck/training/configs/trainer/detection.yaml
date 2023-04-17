@@ -15,12 +15,9 @@ yolox:
     dist_backend: null
     output_dir: './peekingduck/training/outputs'
     trainer_params:
-      ds_format: "voc" # "coco" | "voc"
+      ds_format: ${data_module.dataset_format}
       coco:
         # --------------- Core Config -------------- #
-        data_dir          : 'data/coco_format'
-        train_ann         : 'instances_train2017.json'
-        val_ann           : 'instances_val2017.json'
         num_classes       : 71
         max_epoch         : 10
         depth             : 0.33
@@ -29,6 +26,9 @@ yolox:
         test_size         : [224, 224]
         data_num_workers  : 4
         eval_interval     : 1
+        data_dir          : ${data_module.coco.data_dir}
+        train_ann         : ${data_module.coco.train_ann}
+        val_ann           : ${data_module.coco.val_ann}
         exp_name          : ${trainer.yolox.experiment_name}
         output_dir        : ${trainer.yolox.output_dir}
         # --------------- Transform Config -------------- #
@@ -43,7 +43,7 @@ yolox:
         # act               : 'silu'
         # multiscale_range  : 5
         # dataset           : null
-        # test_ann          : 'instances_test2017.json'
+        # test_ann          : ${data_module.coco.test_ann}
         # degrees           : 10.0
         # translate         : 0.1
         # mosaic_scale      : [0.1, 2]
@@ -64,14 +64,14 @@ yolox:
 
       voc:
         # --------------- Core Config -------------- #
-        data_dir          : 'data/voc_format'
-        image_sets        : [['2007', 'trainval']]
         num_classes       : 10
         max_epoch         : 10
         depth             : 0.33
         width             : 0.50
         input_size        : [224, 224]
         test_size         : [224, 224]
+        data_dir          : ${data_module.voc.data_dir}
+        image_sets        : ${data_module.voc.image_sets}
         exp_name          : ${trainer.yolox.experiment_name}
         output_dir        : ${trainer.yolox.output_dir}
         # --------------- Transform Config -------------- #
@@ -88,9 +88,9 @@ yolox:
         # data_num_workers  : 4
         # multiscale_range  : 5
         # dataset           : null
-        # train_ann         : 'instances_train2017.json'
-        # val_ann           : 'instances_val2017.json'
-        # test_ann          : 'instances_test2017.json'
+        # train_ann         : null
+        # val_ann           : null
+        # test_ann          : null
         # degrees           : 10.0
         # translate         : 0.1
         # mosaic_scale      : [0.1, 2]
