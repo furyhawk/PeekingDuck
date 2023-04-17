@@ -47,7 +47,7 @@ def init_trainer(cfg: DictConfig) -> Trainer:
     return trainer
 
 
-def run_classification(cfg):
+def run_classification(cfg: DictConfig):
 
     assert cfg.framework in [
         "pytorch",
