@@ -291,7 +291,9 @@ class COCOEvaluator:
                 json.dump(data_dict, open(tmp, "w"))
                 cocoDt = cocoGt.loadRes(tmp)
             try:
-                from src.model.yolox.layers import COCOeval_opt as COCOeval
+                # https://github.com/Megvii-BaseDetection/YOLOX/issues/1307
+                # from src.model.yolox.layers import COCOeval_opt as COCOeval
+                from pycocotools.cocoeval import COCOeval # quick fix for this issue
             except ImportError:
                 from pycocotools.cocoeval import COCOeval
 
