@@ -16,7 +16,7 @@ if _TOOLS_PATH.is_dir():
     class _PathFinder(abc.MetaPathFinder):
 
         def find_spec(self, name, path, target=None):
-            if not name.startswith("yolox.tools."):
+            if not name.startswith("src.model.yolox.tools."):
                 return
             project_name = name.split(".")[-1] + ".py"
             target_file = _TOOLS_PATH / project_name

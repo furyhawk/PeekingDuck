@@ -123,14 +123,14 @@ class FastCOCOEvalOp(JitOp):
         super().__init__(name=name)
 
     def absolute_name(self):
-        return f'yolox.layers.{self.name}'
+        return f'src.model.yolox.layers.{self.name}'
 
     def sources(self):
         sources = glob.glob(os.path.join("yolox", "layers", "cocoeval", "*.cpp"))
         if not sources:  # source will be empty list if the so file is removed after install
             # use abosolute path to compile
             import src.model.yolox
-            code_path = os.path.join(yolox.__path__[0], "layers", "cocoeval", "*.cpp")
+            code_path = os.path.join(src.model.yolox.__path__[0], "layers", "cocoeval", "*.cpp")
             sources = glob.glob(code_path)
         return sources
 
