@@ -7,7 +7,17 @@ yolox:
     fp16: True
     occupy: True
     ckpt: "./peekingduck/training/src/model/weights/yolox_s.pth"
-    logger: "tensorboard"
+    logger: "tensorboard" # "tensorboard" | "wandb"
+
+    # --------------- Core Config -------------- #
+    # wandb-project: ${project_name} # <project-name>
+    # wandb-entity: peekingduck # <entity>
+    # wandb-name: null # <run-name>
+    # wandb-id: null # <run-id>
+    # wandb-save_dir: null # <save-dir>
+    # wandb-num_eval_imges: null # <num-images>
+    # wandb-log_checkpoints: True # <bool>
+
     cache: null
     dist_url: null
     num_machines: 1
@@ -18,7 +28,7 @@ yolox:
       ds_format: ${data_module.dataset_format}
       coco:
         # --------------- Core Config -------------- #
-        num_classes       : 71
+        num_classes       : 11
         max_epoch         : 10
         depth             : 0.33
         width             : 0.50

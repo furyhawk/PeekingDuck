@@ -3,7 +3,7 @@ coco:
   data_dir          : 'data/coco_format'
   train_ann         : 'instances_train2017.json'
   val_ann           : 'instances_val2017.json'
-  test_ann          : 'instances_test2017.json'
+  test_ann          : null # 'instances_test2017.json'
 voc:
   data_dir          : 'data/voc_format'
   image_sets        : [['2007', 'trainval']]
