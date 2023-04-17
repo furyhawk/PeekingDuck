@@ -10,7 +10,7 @@ target_col_name: "annotation_path"
 target_col_id: "annotation_path"
 stratify_by: null
 classification_type: "multiclass"
-image_size: 224
+image_size: 416
 max_labels: 30 # max padded bboxes etc
 num_classes: 80
 class_name_to_id:

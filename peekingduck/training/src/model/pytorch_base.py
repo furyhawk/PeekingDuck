@@ -42,7 +42,9 @@ class PTModel(ABC, nn.Module):
         raise NotImplementedError("Please implement your own model.")
 
     @abstractmethod
-    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, inputs: torch.Tensor, targets: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         """Forward pass of the model."""
 
     @abstractmethod

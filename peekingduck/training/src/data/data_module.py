@@ -28,7 +28,10 @@ from torch.utils.data import DataLoader
 from src.data.base import AbstractDataSet
 from src.data.dataset import PTImageClassificationDataset, PTObjectDetectionDataset
 from src.data.data_adapter import DataAdapter
-from src.transforms.augmentations import ImageClassificationTransforms
+from src.transforms.augmentations import (
+    ImageClassificationTransforms,
+    ObjectDetectionTransforms,
+)
 from src.utils.general_utils import (
     create_dataframe_with_image_info,
     download_to,
@@ -218,8 +221,8 @@ class ObjectDetectionDataModule:
         **kwargs: Dict[str, Any],
     ) -> None:
         self.cfg: DictConfig = cfg
-        self.transforms: ImageClassificationTransforms = ImageClassificationTransforms(
-            cfg.transform[cfg.framework]
+        self.transforms: ObjectDetectionTransforms = ObjectDetectionTransforms(
+            cfg.transform[cfg.framework],
         )
         self.dataset_loader: Optional[DataAdapter] = None  # Setup in self.setup()
         self.kwargs = kwargs
@@ -279,7 +282,7 @@ class ObjectDetectionDataModule:
             # image_path is inside the csv.
             df: pd.DataFrame = pd.read_csv(train_csv)
         else:
-            # TODO: only invoke this if images are store in the following format
+            # Only invoke this if images are store in the following format
             # train_dir
             #   - class1 ...
             df = create_dataframe_with_image_info(

@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Callable, Union
+from typing import Callable, Optional, Union
 import timm
 import torch
 import torchvision
@@ -24,12 +24,14 @@ from torch import nn
 from omegaconf import DictConfig
 
 from src.model.pytorch_base import PTModel
-from src.model.yoloxv1.yolox_files.model import YOLOX
+
+from src.model.yoloxv1 import YOLOX, YOLOPAFPN, YOLOXHead
 from src.utils.general_utils import rsetattr
 from src.utils.pt_model_utils import freeze_all_params
 from configs import LOGGER_NAME
 
-# pylint: disable=too-many-instance-attributes, too-many-arguments, logging-fstring-interpolation, invalid-name
+# pylint: disable=too-many-instance-attributes, too-many-arguments
+# pylint: disable=logging-fstring-interpolation, invalid-name
 logger = logging.getLogger(LOGGER_NAME)
 
 
@@ -60,21 +62,21 @@ class PTClassificationModel(PTModel):
     def create_model(self) -> Union[nn.Module, Callable]:
         """Create the model sequentially."""
 
-        backbone = self.create_backbone()
+        model = self.create_backbone()
 
         if self.adapter == "torchvision":
             last_layer_name, _, in_features = self.get_last_layer()
 
             # create and reset the classifier layer
             head = self.create_head(in_features)
-            rsetattr(backbone, last_layer_name, head)
+            rsetattr(model, last_layer_name, head)
 
         elif self.adapter == "timm":
-            backbone.reset_classifier(num_classes=self.model_config.num_classes)
+            model.reset_classifier(num_classes=self.model_config.num_classes)
         else:
             raise ValueError(f"Adapter {self.adapter} not supported.")
 
-        return backbone
+        return model
 
     def create_backbone(self) -> Union[nn.Module, Callable]:
         """Create the backbone of the model.
@@ -117,40 +119,89 @@ class PTObjectDetectionModel(PTModel):
     """
 
     def __init__(self, cfg: DictConfig) -> None:
+        """__init__"""
         super().__init__(cfg)
 
-        self.adapter = self.model_config.adapter
-        self.model_name = self.model_config.model_name
-        self.pretrained = self.model_config.pretrained
-        self.weights = self.model_config.weights
         self.model = self.create_model()
 
-        logger.info(f"Successfully created model: {self.model_config.model_name}")
+        logger.info("Successfully created model:")
 
     def create_model(self) -> Union[nn.Module, Callable]:
         """Create the model sequentially."""
 
-        def init_yolo(M):
+        def init_yolo(M) -> None:
             for m in M.modules():
                 if isinstance(m, nn.BatchNorm2d):
                     m.eps = 1e-3
                     m.momentum = 0.03
 
         if getattr(self, "model", None) is None:
-            self.model = YOLOX(
-                self.model_config.num_classes,
-                self.model_config.image_size,
-                self.model_config.image_size,
+            in_channels = [256, 512, 1024]
+            # NANO model use depthwise = True, which is main difference.
+            backbone = YOLOPAFPN(
+                self.model_config.depth,
+                self.model_config.width,
+                in_channels=in_channels,
+                depthwise=True,
             )
+            head = YOLOXHead(
+                self.model_config.num_classes,
+                self.model_config.width,
+                in_channels=in_channels,
+                depthwise=True,
+            )
+            self.model = YOLOX(backbone, head)
+            # self.model = YOLOX(
+            #     self.model_config.num_classes,
+            #     self.model_config.depth,
+            #     self.model_config.width,
+            # )
+            ckpt = torch.load(
+                self.model_config.ckpt_file, map_location=self.model_config.device
+            )["model"]
+            self.model = load_ckpt(self.model, ckpt)
 
         self.model.apply(init_yolo)
         self.model.head.initialize_biases(1e-2)  # type: ignore
-        self.model.train()
+        # self.model.train()
 
         return self.model
 
-    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+    def create_head(self, in_features: int) -> nn.Module:
+        """Modify the head of the model."""
+        return self.model
+
+    def create_backbone(self) -> Union[nn.Module, Callable]:
+        """Create the backbone of the model."""
+        return self.model
+
+    def forward(
+        self, inputs: torch.Tensor, targets: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         """Forward pass of the model based on the adapter"""
-        outputs = self.model(inputs)
+        outputs = self.model(inputs, targets)
 
         return outputs
+
+
+def load_ckpt(model, ckpt):
+    """load_ckpt"""
+    model_state_dict = model.state_dict()
+    load_dict = {}
+    for key_model, v in model_state_dict.items():
+        if key_model not in ckpt:
+            logger.warning(
+                f"{key_model} is not in the ckpt. Please double check and see if this is desired."
+            )
+            continue
+        v_ckpt = ckpt[key_model]
+        if v.shape != v_ckpt.shape:
+            logger.warning(
+                f"Shape of {key_model} in checkpoint is {v_ckpt.shape}, "
+                f"while shape of {key_model} in model is {v.shape}."
+            )
+            continue
+        load_dict[key_model] = v_ckpt
+
+    model.load_state_dict(load_dict, strict=False)
+    return model

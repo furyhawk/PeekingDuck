@@ -289,7 +289,7 @@ class PTObjectDetectionDataset(Dataset):
         """Generate one batch of data"""
         assert self.stage in [
             "train",
-            "valid",
+            "validation",
             "debug",
             "test",
         ], f"Invalid stage {self.stage}."
@@ -297,27 +297,53 @@ class PTObjectDetectionDataset(Dataset):
         image_path: str = self.image_path[index]
         image: Tensor = cv2.imread(image_path)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        image = self.apply_image_transforms(image)
 
         # Get target for all modes except for test dataset.
         # If test, replace target with dummy ones as placeholder.
-        training_data = (image, np.zeros((self.max_labels, 5), dtype=np.float32))
         if self.stage != "test" and self.label_path is not None:
             label_path = self.label_path[index]
             labels = self.get_labels(label_path, self.cfg.dataset.num_classes)
-            training_data = (image, labels)
+            training_data = self.apply_image_transforms(image, labels)
+        else:  # Test dataset
+            image = self.apply_image_transforms(image)
+            training_data = (
+                image,
+                np.zeros((self.max_labels, 5), dtype=np.float32),
+            )
 
         return training_data
 
-    def apply_image_transforms(self, image: torch.Tensor) -> Tensor:
+    def apply_image_transforms(self, image: torch.Tensor, labels: Optional[Any] = None):
         """Apply transforms to the image."""
         if self.transforms and isinstance(self.transforms, A.Compose):
-            image = self.transforms(image=image)["image"]
+            if labels is not None:
+                bboxes = [x[1:] for x in labels]
+                category_ids = [x[0] for x in labels]
+                # print(f"bboxes{bboxes}category_ids{category_ids}")
+                transformed = self.transforms(
+                    image=image, bboxes=bboxes, category_ids=category_ids
+                )
+                image = transformed["image"]
+                bboxes = transformed["bboxes"]
+                category_ids = transformed["category_ids"]
+
+                targets_t = np.hstack((np.array(category_ids).reshape(-1, 1), bboxes))
+                padded_labels = np.zeros((self.max_labels, 5))
+                padded_labels[range(len(targets_t))[: self.max_labels]] = targets_t[
+                    : self.max_labels
+                ]
+                padded_labels = np.ascontiguousarray(padded_labels, dtype=np.float32)
+                training_data = (image, padded_labels)
+            else:
+                training_data = self.transforms(image=image)["image"]
         elif self.transforms and isinstance(self.transforms, T.Compose):
-            image = self.transforms(image)
+            training_data = (self.transforms(image), np.zeros((0, 5), dtype=np.float32))
         else:
-            image = torch.from_numpy(image).permute(2, 0, 1)  # convert HWC to CHW
-        return image
+            training_data = (
+                torch.from_numpy(image).permute(2, 0, 1),
+                np.zeros((0, 5), dtype=np.float32),
+            )  # convert HWC to CHW
+        return training_data
 
     def apply_target_transforms(
         self, target: torch.Tensor, dtype: torch.dtype = torch.long
@@ -327,10 +353,9 @@ class PTObjectDetectionDataset(Dataset):
             This is useful for tasks such as segmentation object detection where
             targets are in the form of bounding boxes, segmentation masks etc.
         """
-        # self.labels = self.get_labels()
         return torch.tensor(target, dtype=dtype)
 
-    def verify_image(self, im_file):
+    def verify_image(self, im_file: str) -> str:
         """verify images"""
         msg = ""
         # verify images
@@ -350,42 +375,81 @@ class PTObjectDetectionDataset(Dataset):
                     msg = f"WARNING ⚠️ {im_file}: corrupt JPEG restored and saved"
         return msg
 
-    def verify_label(self, lb_file, num_cls):
+    def verify_label(self, lb_file: str, num_cls: int):
         """verify labels"""
         try:
             # verify labels
             if os.path.isfile(lb_file):
                 with open(lb_file) as f:
-                    lb = [x.split() for x in f.read().strip().splitlines() if len(x)]
-                    if any(len(x) > 6 for x in lb):  # is segment
-                        classes = np.array([x[0] for x in lb], dtype=np.float32)
+                    label = [x.split() for x in f.read().strip().splitlines() if len(x)]
+                    if any(len(x) > 6 for x in label):  # is segment
+                        classes = np.array([x[0] for x in label], dtype=np.float32)
                         segments = [
-                            np.array(x[1:], dtype=np.float32).reshape(-1, 2) for x in lb
+                            np.array(x[1:], dtype=np.float32).reshape(-1, 2)
+                            for x in label
                         ]  # (cls, xy1...)
-                        lb = np.concatenate(
+                        label = np.concatenate(
                             (classes.reshape(-1, 1), segments2boxes(segments)), 1
                         )  # (cls, xywh)
-                    lb = np.array(lb, dtype=np.float32)
-                    nl = len(lb)
+                    label = np.array(label, dtype=np.float32)
+                    nl = len(label)
                     if nl:
                         assert (
-                            lb.shape[1] == 5
-                        ), f"labels require 5 columns, {lb.shape[1]} columns detected"
+                            label.shape[1] == 5
+                        ), f"labels require 5 columns, {label.shape[1]} columns detected"
                         assert (
-                            lb[:, 1:] <= 1
-                        ).all(), "non-normalized or out of bounds coordinates"
-                        f" {lb[:, 1:][lb[:, 1:] > 1]}"
+                            label[:, 1:] <= 1
+                        ).all(), f"non-normalized or out of bounds coordinates {label[:, 1:][label[:, 1:] > 1]}"
+
+                        check1 = (label[:, 1] - label[:, 3] / 2) < 0
+                        if (check1).any():
+                            # print(f"⚠️ 1 3 < 0 {lb[:, 1:][check1]}")
+                            label[:, 3][check1] = (
+                                label[:, 3][check1]
+                                + (label[:, 1][check1] - label[:, 3][check1] / 2) * 2
+                            )
+
+                        check2 = (label[:, 2] - label[:, 4] / 2) < 0
+                        if (check2).any():
+                            # print(f"⚠️ 2 4 < 0 {lb[:, 1:][check2]}")
+                            label[:, 4][check2] = (
+                                label[:, 4][check2]
+                                + (label[:, 2][check2] - label[:, 4][check2] / 2) * 2
+                            )
+
+                        check3 = (label[:, 1] + label[:, 3] / 2) > 1
+                        if (check3).any():
+                            # print(f"⚠️ 1 3 > 1 {lb[:, 1:][check3]}")
+                            label[:, 3][check3] = (
+                                label[:, 3][check3]
+                                - ((label[:, 1][check3] + label[:, 3][check3] / 2) - 1)
+                                * 2
+                            )
+
+                        check4 = (label[:, 2] + label[:, 4] / 2) > 1
+                        if (check4).any():
+                            # print(f"⚠️ 2 4 > 1 {lb[:, 1:][check4]}")
+                            label[:, 4][check4] = (
+                                label[:, 4][check4]
+                                - ((label[:, 2][check4] + label[:, 4][check4] / 2) - 1)
+                                * 2
+                            )
 
                         # All labels
-                        max_cls = int(lb[:, 0].max())  # max label count
+                        max_cls = int(label[:, 0].max())  # max label count
                         assert max_cls <= num_cls, (
                             f"Label class {max_cls} exceeds dataset class count {num_cls}. "
-                            f"Possible class labels are 0-{num_cls - 1}{lb}"
+                            f"Possible class labels are 0-{num_cls - 1}{label}"
                         )
-                        assert (lb >= 0).all(), f"negative label values {lb[lb < 0]}"
-                        _, i = np.unique(lb, axis=0, return_index=True)
+                        assert (
+                            label >= 0
+                        ).all(), f"negative label values {label[label < 0]}"
+                        assert (
+                            label[:, 1:] >= 0
+                        ).all(), f"non-normalized or out of bounds coordinates {label[:, 1:][label[:, 1:] < 0]}"
+                        _, i = np.unique(label, axis=0, return_index=True)
                         if len(i) < nl:  # duplicate row check
-                            lb = lb[i]  # remove duplicates
+                            label = label[i]  # remove duplicates
                             if segments:
                                 segments = [segments[x] for x in i]
                             logger.info(
@@ -393,24 +457,20 @@ class PTObjectDetectionDataset(Dataset):
                             )
                     else:
                         ne = 1  # label empty
-                        lb = np.zeros((0, 5), dtype=np.float32)
+                        label = np.zeros((0, 5), dtype=np.float32)
 
             else:
                 nm = 1  # label missing
-                lb = np.zeros((0, 5), dtype=np.float32)
+                label = np.zeros((0, 5), dtype=np.float32)
 
-            lb = lb[:, :5]
-            return lb
+            label = label[:, :5]
+            return label
         except Exception as e:
             nc = 1
             logger.info(f"WARNING ⚠️ {lb_file}: ignoring corrupt image/label: {e}")
+            # return np.zeros((0, 5), dtype=np.float32)
 
-    def get_labels(self, label_path, num_cls):
+    def get_labels(self, label_path: str, num_cls: int):
         """get labels"""
         targets_t = self.verify_label(label_path, num_cls)
-        padded_labels = np.zeros((self.max_labels, 5))
-        padded_labels[range(len(targets_t))[: self.max_labels]] = targets_t[
-            : self.max_labels
-        ]
-        padded_labels = np.ascontiguousarray(padded_labels, dtype=np.float32)
-        return padded_labels
+        return targets_t

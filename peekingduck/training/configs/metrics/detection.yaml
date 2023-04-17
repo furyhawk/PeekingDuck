@@ -1,0 +1,3 @@
+pytorch:
+      # Options: Accuracy | Precision | Recall | AUROC | CalibrationError
+      - Accuracy

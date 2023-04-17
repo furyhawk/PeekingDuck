@@ -26,189 +26,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Copyright (c) Megvii Inc. All rights reserved.
 """YOLOX model with its backbone (YOLOFAPN) and head (YOLOXHead).
-
-Modifications include:
-- YOLOX
-    - Uses only YOLOPAFPN as backbone
-    - Uses only YOLOHead as head
-- YOLOPAFPN
-    - Refactor arguments name
-- YOLOXHead
-    - Uses range based loop to iterate through in_channels
-    - Removed training-related code and arguments
-        - Code under the `if self.training` scope
-        - get_output_and_grid() and initialize_biases() methods
 """
 
-from typing import Any, List, Optional, Tuple, Union
 import math
+from typing import Any, List, Optional, Tuple
 
 import torch
-from torch import nn
+import torch.nn as nn
+import torch.nn.functional as F
 
-from src.model.yoloxv1.yolox_files.darknet import CSPDarknet
-from src.model.yoloxv1.yolox_files.network_blocks import (
-    BaseConv,
-    CSPLayer,
-)
-from src.model.yoloxv1.yolox_files.losses import IOUloss
+from src.model.yoloxv1.compat import meshgrid
+from src.model.yoloxv1.boxes import bboxes_iou
 
-IN_CHANNELS = [256, 512, 1024]
+from .losses import IOUloss
+from .network_blocks import BaseConv, DWConv
 
 
-class YOLOX(nn.Module):
-    """YOLOX model module.
-
-    The module list is defined by create_yolov3_modules function. The network
-    returns loss values from three YOLO layers during training and detection
-    results during test.
-    """
-
-    # pylint: disable=arguments-differ
-    def __init__(
-        self,
-        num_classes: int,
-        depth: float,
-        width: float,
-    ) -> None:
-        super().__init__()
-        self.backbone = YOLOPAFPN(depth, width)
-        self.head = YOLOXHead(num_classes, width)
-        self.apply(YOLOX.initialize_batch_norm)
-
-    def forward(
-        self, inputs: torch.Tensor, targets: Optional[torch.Tensor] = None
-    ) -> Union[dict, torch.Tensor]:
-        """Defines the computation performed at every call.
-
-        Args:
-            inputs (torch.Tensor): Input image.
-
-        Returns:
-            (torch.Tensor): The decoded output with the shape (B,D,85) where
-            B is the batch size, D is the number of detections. The 85 columns
-            consist of the following values:
-            [x, y, w, h, conf, (cls_conf of the 80 COCO classes)].
-        """
-        # FPN output content features of [dark3, dark4, dark5]
-        fpn_outs = self.backbone(inputs)
-        if self.training:
-            assert targets is not None
-            loss, iou_loss, conf_loss, cls_loss, l1_loss, num_fg = self.head(
-                fpn_outs, targets, inputs
-            )
-            outputs = {
-                "total_loss": loss,
-                "iou_loss": iou_loss,
-                "l1_loss": l1_loss,
-                "conf_loss": conf_loss,
-                "cls_loss": cls_loss,
-                "num_fg": num_fg,
-            }
-        else:
-            outputs = self.head(fpn_outs)
-        return outputs
-
-    @staticmethod
-    def initialize_batch_norm(module: nn.Module) -> None:
-        """Initializes the BatchNorm2d layers."""
-        for mod in module.modules():
-            if isinstance(mod, nn.BatchNorm2d):
-                mod.eps = 1e-3
-                mod.momentum = 0.03
-
-
-class YOLOPAFPN(nn.Module):  # pylint: disable=too-many-instance-attributes
-    """YOLOv3 model. Darknet 53 is the default backbone of this model."""
-
-    # pylint: disable=arguments-differ, dangerous-default-value, invalid-name
-    def __init__(
-        self,
-        depth: float = 1.0,
-        width: float = 1.0,
-    ) -> None:
-        super().__init__()
-        n_bottleneck = round(3 * depth)
-        self.in_features = ("dark3", "dark4", "dark5")
-        self.backbone = CSPDarknet(depth, width, self.in_features)
-
-        self.upsample = nn.Upsample(scale_factor=2, mode="nearest")
-        N256, N512, N1024 = IN_CHANNELS
-        self.lateral_conv0 = BaseConv(int(N1024 * width), int(N512 * width), 1, 1)
-        self.C3_p4 = self.make_csp_layer(N512, N512, n_bottleneck, width)
-
-        self.reduce_conv1 = BaseConv(int(N512 * width), int(N256 * width), 1, 1)
-        self.C3_p3 = self.make_csp_layer(N256, N256, n_bottleneck, width)
-
-        # bottom-up conv
-        self.bu_conv2 = BaseConv(int(N256 * width), int(N256 * width), 3, 2)
-        self.C3_n3 = self.make_csp_layer(N256, N512, n_bottleneck, width)
-
-        # bottom-up conv
-        self.bu_conv1 = BaseConv(int(N512 * width), int(N512 * width), 3, 2)
-        self.C3_n4 = self.make_csp_layer(N512, N1024, n_bottleneck, width)
-
-    @staticmethod
-    def make_csp_layer(
-        in_channel: int, out_channel: int, depth: int, width: float
-    ) -> CSPLayer:
-        """Returns a CSPLayer.
-
-        Args:
-            in_channel (int): Input channels.
-            out_channel (int): Output channels.
-            depth (int): Number of Bottlenecks.
-            width (float): Multiplier to scale the number of input and output
-                channels.
-
-        Returns:
-            (CSPLayer): A CSPLayer consisting of following blocks:
-            Conv -> Bottlenecks -> Conv
-                               /
-                        Conv -
-        """
-        return CSPLayer(
-            int(2 * in_channel * width), int(out_channel * width), depth, False
-        )
-
-    def forward(
-        self, inputs: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Defines the computation performed at every call.
-
-        Args:
-            inputs: Input images.
-
-        Returns:
-            (Tuple[torch.Tensor, torch.Tensor, torch.Tensor]): FPN feature.
-        """
-        #  backbone
-        out_features = self.backbone(inputs)
-        [x2, x1, x0] = [out_features[f] for f in self.in_features]
-
-        fpn_out0 = self.lateral_conv0(x0)  # 1024->512/32
-        f_out0 = self.upsample(fpn_out0)  # 512/16
-        f_out0 = torch.cat([f_out0, x1], 1)  # 512->1024/16
-        f_out0 = self.C3_p4(f_out0)  # 1024->512/16
-
-        fpn_out1 = self.reduce_conv1(f_out0)  # 512->256/16
-        f_out1 = self.upsample(fpn_out1)  # 256/8
-        f_out1 = torch.cat([f_out1, x2], 1)  # 256->512/8
-        pan_out2 = self.C3_p3(f_out1)  # 512->256/8
-
-        p_out1 = self.bu_conv2(pan_out2)  # 256->256/16
-        p_out1 = torch.cat([p_out1, fpn_out1], 1)  # 256->512/16
-        pan_out1 = self.C3_n3(p_out1)  # 512->512/16
-
-        p_out0 = self.bu_conv1(pan_out1)  # 512->512/32
-        p_out0 = torch.cat([p_out0, fpn_out0], 1)  # 512->1024/32
-        pan_out0 = self.C3_n4(p_out0)  # 1024->1024/32
-
-        return pan_out2, pan_out1, pan_out0
-
-
-class YOLOXHead(nn.Module):  # pylint: disable=too-many-instance-attributes
+class YOLOXHead(nn.Module):
     """Decoupled head.
 
     The decoupled head contains two parallel branches for classification and
@@ -216,19 +52,24 @@ class YOLOXHead(nn.Module):  # pylint: disable=too-many-instance-attributes
     the conv layers.
     """
 
-    # pylint: disable=arguments-differ, dangerous-default-value, invalid-name
     def __init__(
         self,
         num_classes: int,
         width: float = 1.0,
         strides: List[int] = [8, 16, 32],
+        in_channels: List[int] = [256, 512, 1024],
+        act: str = "silu",
+        depthwise: bool = False,
     ) -> None:
+        """
+        Args:
+            act (str): activation type of conv. Defalut value: "silu".
+            depthwise (bool): whether apply depthwise conv in conv branch. Defalut value: False.
+        """
         super().__init__()
 
-        self.sizes: List[Tuple[Any, ...]]
-        feat_channels = int(256 * width)
-        self.n_anchors = 1
         self.num_classes = num_classes
+        self.decode_in_inference = True  # for deploy, set to False
 
         self.cls_convs = nn.ModuleList()
         self.reg_convs = nn.ModuleList()
@@ -236,41 +77,95 @@ class YOLOXHead(nn.Module):  # pylint: disable=too-many-instance-attributes
         self.reg_preds = nn.ModuleList()
         self.obj_preds = nn.ModuleList()
         self.stems = nn.ModuleList()
+        Conv = DWConv if depthwise else BaseConv
 
-        for in_channel in IN_CHANNELS:
-            self.stems.append(BaseConv(int(in_channel * width), feat_channels, 1, 1))
-            self.cls_convs.append(nn.Sequential(*self.make_group_layer(feat_channels)))
-            self.reg_convs.append(nn.Sequential(*self.make_group_layer(feat_channels)))
-            self.cls_preds.append(
-                nn.Conv2d(feat_channels, self.n_anchors * self.num_classes, 1, 1, 0)
+        for i in range(len(in_channels)):
+            self.stems.append(
+                BaseConv(
+                    in_channels=int(in_channels[i] * width),
+                    out_channels=int(256 * width),
+                    ksize=1,
+                    stride=1,
+                    act=act,
+                )
             )
-            self.reg_preds.append(nn.Conv2d(feat_channels, 4, 1, 1, 0))
-            self.obj_preds.append(nn.Conv2d(feat_channels, self.n_anchors * 1, 1, 1, 0))
+            self.cls_convs.append(
+                nn.Sequential(
+                    *[
+                        Conv(
+                            in_channels=int(256 * width),
+                            out_channels=int(256 * width),
+                            ksize=3,
+                            stride=1,
+                            act=act,
+                        ),
+                        Conv(
+                            in_channels=int(256 * width),
+                            out_channels=int(256 * width),
+                            ksize=3,
+                            stride=1,
+                            act=act,
+                        ),
+                    ]
+                )
+            )
+            self.reg_convs.append(
+                nn.Sequential(
+                    *[
+                        Conv(
+                            in_channels=int(256 * width),
+                            out_channels=int(256 * width),
+                            ksize=3,
+                            stride=1,
+                            act=act,
+                        ),
+                        Conv(
+                            in_channels=int(256 * width),
+                            out_channels=int(256 * width),
+                            ksize=3,
+                            stride=1,
+                            act=act,
+                        ),
+                    ]
+                )
+            )
+            self.cls_preds.append(
+                nn.Conv2d(
+                    in_channels=int(256 * width),
+                    out_channels=self.num_classes,
+                    kernel_size=1,
+                    stride=1,
+                    padding=0,
+                )
+            )
+            self.reg_preds.append(
+                nn.Conv2d(
+                    in_channels=int(256 * width),
+                    out_channels=4,
+                    kernel_size=1,
+                    stride=1,
+                    padding=0,
+                )
+            )
+            self.obj_preds.append(
+                nn.Conv2d(
+                    in_channels=int(256 * width),
+                    out_channels=1,
+                    kernel_size=1,
+                    stride=1,
+                    padding=0,
+                )
+            )
 
         self.use_l1 = False
         self.l1_loss = nn.L1Loss(reduction="none")
         self.bcewithlog_loss = nn.BCEWithLogitsLoss(reduction="none")
         self.iou_loss = IOUloss(reduction="none")
         self.strides = strides
-        self.grids = [torch.zeros(1)] * len(IN_CHANNELS)
+        self.grids = [torch.zeros(1)] * len(in_channels)
 
-    @staticmethod
-    def make_group_layer(in_channels: int) -> Tuple[BaseConv, BaseConv]:
-        """2x BaseConv layer.
-
-        Args:
-            in_channels (int): The number of input and output channels for
-                BaseConv.
-
-        Returns:
-            (Tuple[BaseConv, BaseConv]): A tuple containing 2 BaseConv blocks.
-        """
-        return (
-            BaseConv(in_channels, in_channels, 3, 1),
-            BaseConv(in_channels, in_channels, 3, 1),
-        )
-
-    def initialize_biases(self, prior_prob):
+    def initialize_biases(self, prior_prob) -> None:
+        """initialize_biases"""
         for conv in self.cls_preds:
             b = conv.bias.view(1, -1)
             b.data.fill_(-math.log((1 - prior_prob) / prior_prob))
@@ -310,11 +205,13 @@ class YOLOXHead(nn.Module):  # pylint: disable=too-many-instance-attributes
             zip(self.cls_convs, self.reg_convs, self.strides, xin)
         ):
             x = self.stems[k](x)
+            cls_x = x
+            reg_x = x
 
-            cls_feat = cls_conv(x)
+            cls_feat = cls_conv(cls_x)
             cls_output = self.cls_preds[k](cls_feat)
 
-            reg_feat = reg_conv(x)
+            reg_feat = reg_conv(reg_x)
             reg_output = self.reg_preds[k](reg_feat)
             obj_output = self.obj_preds[k](reg_feat)
 
@@ -358,14 +255,41 @@ class YOLOXHead(nn.Module):  # pylint: disable=too-many-instance-attributes
                 dtype=xin[0].dtype,
             )
         else:
-            self.sizes = [x.shape[-2:] for x in outputs]
+            self.hw = [x.shape[-2:] for x in outputs]
             # [batch, n_anchors_all, 85]
-            outputs_tensor = torch.cat(
+            outputs = torch.cat(
                 [x.flatten(start_dim=2) for x in outputs], dim=2
             ).permute(0, 2, 1)
-            # Always decode output for inference
-            outputs_tensor = self.decode_outputs(outputs_tensor, xin[0].type())
-            return outputs_tensor
+            if self.decode_in_inference:
+                return self.decode_outputs(outputs, dtype=xin[0].type())
+            else:
+                return outputs
+
+    def get_output_and_grid(self, output, k, stride, dtype):
+        """get_output_and_grid"""
+        grid = self.grids[k]
+
+        batch_size = output.shape[0]
+        n_ch = 5 + self.num_classes
+        hsize, wsize = output.shape[-2:]
+        if grid.shape[2:4] != output.shape[2:4]:
+            yv, xv = meshgrid([torch.arange(hsize), torch.arange(wsize)])
+            if dtype.startswith("torch.mps"):
+                grid = torch.stack((xv, yv), 2).view(1, 1, hsize, wsize, 2).to("cpu")
+                self.grids[k] = grid.to("cpu")
+                output = output.to("cpu")
+            else:
+                grid = torch.stack((xv, yv), 2).view(1, 1, hsize, wsize, 2).type(dtype)
+                self.grids[k] = grid
+
+        output = output.view(batch_size, 1, n_ch, hsize, wsize)
+        output = output.permute(0, 1, 3, 4, 2).reshape(batch_size, hsize * wsize, -1)
+        grid = grid.view(1, -1, 2)
+        if dtype.startswith("torch.mps"):
+            output = output.to("cpu")
+        output[..., :2] = (output[..., :2] + grid) * stride
+        output[..., 2:4] = torch.exp(output[..., 2:4]) * stride
+        return output, grid
 
     def decode_outputs(self, outputs: torch.Tensor, dtype: str) -> torch.Tensor:
         """Converts raw output to [x, y, w, h] format.
@@ -385,18 +309,29 @@ class YOLOXHead(nn.Module):  # pylint: disable=too-many-instance-attributes
         """
         grids = []
         strides = []
-        for (hsize, wsize), stride in zip(self.sizes, self.strides):
-            yv, xv = torch.meshgrid([torch.arange(hsize), torch.arange(wsize)])
+        for (hsize, wsize), stride in zip(self.hw, self.strides):
+            yv, xv = meshgrid([torch.arange(hsize), torch.arange(wsize)])
             grid = torch.stack((xv, yv), 2).view(1, -1, 2)
             grids.append(grid)
             shape = grid.shape[:2]
             strides.append(torch.full((*shape, 1), stride))
 
-        grids_tensor = torch.cat(grids, dim=1).type(dtype)
-        strides_tensor = torch.cat(strides, dim=1).type(dtype)
+        if dtype.startswith("torch.mps"):
+            grids = torch.cat(grids, dim=1).to("cpu")
+            strides = torch.cat(strides, dim=1).to("cpu")
+            outputs = outputs.to("cpu")
+        else:
+            grids = torch.cat(grids, dim=1).type(dtype)
+            strides = torch.cat(strides, dim=1).type(dtype)
 
-        outputs[..., :2] = (outputs[..., :2] + grids_tensor) * strides_tensor
-        outputs[..., 2:4] = torch.exp(outputs[..., 2:4]) * strides_tensor
+        outputs = torch.cat(
+            [
+                (outputs[..., 0:2] + grids) * strides,
+                torch.exp(outputs[..., 2:4]) * strides,
+                outputs[..., 4:],
+            ],
+            dim=-1,
+        )
         return outputs
 
     def get_losses(
@@ -408,8 +343,9 @@ class YOLOXHead(nn.Module):  # pylint: disable=too-many-instance-attributes
         labels,
         outputs,
         origin_preds,
-        dtype,
+        dtype: str,
     ):
+        """get_losses"""
         bbox_preds = outputs[:, :, :4]  # [batch, n_anchors_all, 4]
         obj_preds = outputs[:, :, 4:5]  # [batch, n_anchors_all, 1]
         cls_preds = outputs[:, :, 5:]  # [batch, n_anchors_all, n_cls]
