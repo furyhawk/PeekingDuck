@@ -1,96 +1,110 @@
 yolox:
-    batch_size: 64
-    resume: False
-    ckpt: "peekingduck/training/src/model/yolox_megvii/weights/yolox_s.pth"
-    fp16: null
-    occupy: False
-    name: "yolox_s"
     experiment_name: ${project_name}
-    cache: null
+    name: null
+    resume: False 
+    devices: 1
+    batch_size: 64
+    fp16: True
+    occupy: True
+    ckpt: "./peekingduck/training/src/model/weights/yolox_s.pth"
     logger: "tensorboard"
+    cache: null
+    dist_url: null
+    num_machines: 1
+    machine_rank: null
+    dist_backend: null
+    output_dir: './peekingduck/training/outputs'
     trainer_params:
-      ds_format: "voc"
+      ds_format: "voc" # "coco" | "voc"
       coco:
-        seed              : null                      
-        output_dir        : './peekingduck/training/outputs'         
-        print_interval    : 10                        
-        eval_interval     : 10                        
-        dataset           : 'coco128_2'
-        num_classes       : 80                        
-        depth             : 0.33      # yolox_s                
-        width             : 0.5       # yolox_s   
-        act               : 'silu'                    
-        data_num_workers  : 4                         
-        input_size        : [640, 640]
-        multiscale_range  : 5                         
-        data_dir          : 'data'
+        # --------------- Core Config -------------- #
+        data_dir          : 'data/coco_format'
         train_ann         : 'instances_train2017.json'
         val_ann           : 'instances_val2017.json'
-        test_ann          : 'instances_test2017.json'
+        num_classes       : 71
+        max_epoch         : 10
+        depth             : 0.33
+        width             : 0.50
+        input_size        : [224, 224]
+        test_size         : [224, 224]
+        data_num_workers  : 4
+        eval_interval     : 1
+        exp_name          : ${trainer.yolox.experiment_name}
+        output_dir        : ${trainer.yolox.output_dir}
+        # --------------- Transform Config -------------- #
         mosaic_prob       : 1.0
         mixup_prob        : 1.0
         hsv_prob          : 1.0
         flip_prob         : 0.5
-        degrees           : 10.0
-        translate         : 0.1
-        mosaic_scale      : [0.1, 2]
-        enable_mixup      : True
-        mixup_scale       : [0.5, 1.5]
-        shear             : 2.0
-        warmup_epochs     : 1
-        max_epoch         : 3
-        warmup_lr         : 0
-        min_lr_ratio      : 0.05
-        basic_lr_per_img  : 0.00015625
-        scheduler         : 'yoloxwarmcos'
-        no_aug_epochs     : 15
-        ema               : True
-        weight_decay      : 0.0005
-        momentum          : 0.9
-        save_history_ckpt : True
-        exp_name          : ${project_name}
-        test_size         : [640, 640]
-        test_conf         : 0.01
-        nmsthre           : 0.65
+        # --------------- Additional Config -------------- #
+        # seed              : null
+        # warmup_epochs     : 1
+        # print_interval    : 10
+        # act               : 'silu'
+        # multiscale_range  : 5
+        # dataset           : null
+        # test_ann          : 'instances_test2017.json'
+        # degrees           : 10.0
+        # translate         : 0.1
+        # mosaic_scale      : [0.1, 2]
+        # enable_mixup      : True
+        # mixup_scale       : [0.5, 1.5]
+        # shear             : 2.0        
+        # warmup_lr         : 0
+        # min_lr_ratio      : 0.05
+        # basic_lr_per_img  : 0.00015625
+        # scheduler         : 'yoloxwarmcos'
+        # no_aug_epochs     : 15
+        # ema               : True
+        # weight_decay      : 0.0005
+        # momentum          : 0.9
+        # save_history_ckpt : True
+        # test_conf         : 0.01
+        # nmsthre           : 0.65
+
       voc:
-        seed              : null                      
-        output_dir        : './peekingduck/training/outputs'             
-        print_interval    : 10                        
-        eval_interval     : 10                        
-        dataset           : 'coco128_2'
-        num_classes       : 11                        
-        depth             : 0.33                      
-        width             : 0.5                       
-        act               : 'silu'                    
-        data_num_workers  : 4                         
-        input_size        : [640, 640]
-        multiscale_range  : 5                         
-        data_dir          : 'data'                      
-        train_ann         : 'instances_train2017.json'
-        val_ann           : 'instances_val2017.json'
-        test_ann          : 'instances_test2017.json'
+        # --------------- Core Config -------------- #
+        data_dir          : 'data/voc_format'
+        image_sets        : [['2007', 'trainval']]
+        num_classes       : 10
+        max_epoch         : 10
+        depth             : 0.33
+        width             : 0.50
+        input_size        : [224, 224]
+        test_size         : [224, 224]
+        exp_name          : ${trainer.yolox.experiment_name}
+        output_dir        : ${trainer.yolox.output_dir}
+        # --------------- Transform Config -------------- #
         mosaic_prob       : 1.0
         mixup_prob        : 1.0
         hsv_prob          : 1.0
         flip_prob         : 0.5
-        degrees           : 10.0
-        translate         : 0.1
-        mosaic_scale      : [0.1, 2]
-        enable_mixup      : True
-        mixup_scale       : [0.5, 1.5]
-        shear             : 2.0
-        warmup_epochs     : 1
-        max_epoch         : 3
-        warmup_lr         : 0
-        min_lr_ratio      : 0.05
-        basic_lr_per_img  : 0.00015625
-        scheduler         : 'yoloxwarmcos'
-        no_aug_epochs     : 15
-        ema               : True
-        weight_decay      : 0.0005
-        momentum          : 0.9
-        save_history_ckpt : True
-        exp_name          : ${project_name}
-        test_size         : [640, 640]
-        test_conf         : 0.01
-        nmsthre           : 0.65
+        # --------------- Additional Config -------------- #
+        # seed              : null
+        # warmup_epochs     : 1
+        # print_interval    : 10
+        # eval_interval     : 1
+        # act               : 'silu'
+        # data_num_workers  : 4
+        # multiscale_range  : 5
+        # dataset           : null
+        # train_ann         : 'instances_train2017.json'
+        # val_ann           : 'instances_val2017.json'
+        # test_ann          : 'instances_test2017.json'
+        # degrees           : 10.0
+        # translate         : 0.1
+        # mosaic_scale      : [0.1, 2]
+        # enable_mixup      : True
+        # mixup_scale       : [0.5, 1.5]
+        # shear             : 2.0        
+        # warmup_lr         : 0
+        # min_lr_ratio      : 0.05
+        # basic_lr_per_img  : 0.00015625
+        # scheduler         : 'yoloxwarmcos'
+        # no_aug_epochs     : 15
+        # ema               : True
+        # weight_decay      : 0.0005
+        # momentum          : 0.9
+        # save_history_ckpt : True
+        # test_conf         : 0.01
+        # nmsthre           : 0.65

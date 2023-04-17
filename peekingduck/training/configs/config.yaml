@@ -1,5 +1,5 @@
 device: "auto" # "auto" to select available gpu. "cpu"|"cuda"|"mps"
-project_name: "coco128" #rsna | cifar10 | vegfru | vegfru5 | vegfru20
+project_name: "yolox_integration" #rsna | cifar10 | vegfru | vegfru5 | vegfru20
 debug: True
 framework: "pytorch" # 'pytorch' | 'tensorflow'
 random_state: 11

@@ -141,7 +141,7 @@ cython_debug/
 data/
 !tests/data/
 !data/**/*.csv
-!peekingduck/training/src/model/yolox_megvii/data/
+!peekingduck/training/src/model/yolox/data
 
 # Other likely dirs that should not be committed
 logs/
@@ -154,7 +154,7 @@ dist/
 peekingduck.egg-info/
 docs/source/peekingduck.*
 docs/source/nodes
-!peekingduck/training/src/model/yolox_megvii/weights/
+!peekingduck/training/src/model/weights/
 
 # Other likely files that should not be committed
 .DS_Store
