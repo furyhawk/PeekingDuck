@@ -159,3 +159,4 @@ peekingduck/training/.gitignore
 **/outputs
 **/multirun
 **/wandb
+YOLOX_outputs/

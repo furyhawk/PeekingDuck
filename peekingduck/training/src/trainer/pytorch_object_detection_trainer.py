@@ -14,18 +14,25 @@
 
 """pytorch trainer"""
 
+import contextlib
+import io
+import itertools
+import tempfile
 import logging
 import os
 import time
 from typing import Any, DefaultDict, Dict, List, Optional, Union
 from collections import defaultdict
 import cv2
+import json
 
 from albumentations.augmentations.transforms import Normalize
 from omegaconf import DictConfig
 from hydra.utils import instantiate
+from pycocotools.coco import COCO
 from tqdm.auto import tqdm
 import numpy as np
+from tabulate import tabulate
 import torch  # pylint: disable=consider-using-from-import
 from torch.utils.data import DataLoader
 from torchmetrics import MetricCollection
@@ -38,10 +45,10 @@ from src.optimizers.adapter import OptimizersAdapter
 from src.callbacks.base import init_callbacks
 from src.callbacks.events import EVENTS
 from src.model.pytorch_base import PTModel
-from src.model.yoloxv1.boxes import postprocess, preproc
+from src.model.yoloxv1.boxes import postprocess, xyxy2xywh
 from src.model.yoloxv1.visualize import vis
 from src.metrics.pytorch_metrics import PytorchMetrics
-from src.utils.general_utils import free_gpu_memory  # , init_logger
+from src.utils.general_utils import free_gpu_memory, time_synchronized  # , init_logger
 from src.utils.pt_model_utils import set_trainable_layers, unfreeze_all_params
 
 logger: logging.Logger = logging.getLogger(LOGGER_NAME)  # pylint: disable=invalid-name
@@ -63,6 +70,154 @@ def get_sigmoid_softmax(
         loss_func = getattr(torch.nn, "Softmax")(dim=1)
 
     return loss_func
+
+
+COCO_CLASSES = (
+    "person",
+    "bicycle",
+    "car",
+    "motorcycle",
+    "airplane",
+    "bus",
+    "train",
+    "truck",
+    "boat",
+    "traffic light",
+    "fire hydrant",
+    "stop sign",
+    "parking meter",
+    "bench",
+    "bird",
+    "cat",
+    "dog",
+    "horse",
+    "sheep",
+    "cow",
+    "elephant",
+    "bear",
+    "zebra",
+    "giraffe",
+    "backpack",
+    "umbrella",
+    "handbag",
+    "tie",
+    "suitcase",
+    "frisbee",
+    "skis",
+    "snowboard",
+    "sports ball",
+    "kite",
+    "baseball bat",
+    "baseball glove",
+    "skateboard",
+    "surfboard",
+    "tennis racket",
+    "bottle",
+    "wine glass",
+    "cup",
+    "fork",
+    "knife",
+    "spoon",
+    "bowl",
+    "banana",
+    "apple",
+    "sandwich",
+    "orange",
+    "broccoli",
+    "carrot",
+    "hot dog",
+    "pizza",
+    "donut",
+    "cake",
+    "chair",
+    "couch",
+    "potted plant",
+    "bed",
+    "dining table",
+    "toilet",
+    "tv",
+    "laptop",
+    "mouse",
+    "remote",
+    "keyboard",
+    "cell phone",
+    "microwave",
+    "oven",
+    "toaster",
+    "sink",
+    "refrigerator",
+    "book",
+    "clock",
+    "vase",
+    "scissors",
+    "teddy bear",
+    "hair drier",
+    "toothbrush",
+)
+
+
+def per_class_AR_table(
+    coco_eval, class_names=COCO_CLASSES, headers=["class", "AR"], colums=6
+):
+    per_class_AR = {}
+    recalls = coco_eval.eval["recall"]
+    # dimension of recalls: [TxKxAxM]
+    # recall has dims (iou, cls, area range, max dets)
+    assert len(class_names) == recalls.shape[1]
+
+    for idx, name in enumerate(class_names):
+        recall = recalls[:, idx, 0, -1]
+        recall = recall[recall > -1]
+        ar = np.mean(recall) if recall.size else float("nan")
+        per_class_AR[name] = float(ar * 100)
+
+    num_cols = min(colums, len(per_class_AR) * len(headers))
+    result_pair = [x for pair in per_class_AR.items() for x in pair]
+    row_pair = itertools.zip_longest(
+        *[result_pair[i::num_cols] for i in range(num_cols)]
+    )
+    table_headers = headers * (num_cols // len(headers))
+    table = tabulate(
+        row_pair,
+        tablefmt="pipe",
+        floatfmt=".3f",
+        headers=table_headers,
+        numalign="left",
+    )
+    return table
+
+
+def per_class_AP_table(
+    coco_eval, class_names=COCO_CLASSES, headers=["class", "AP"], colums=6
+):
+    per_class_AP = {}
+    precisions = coco_eval.eval["precision"]
+    # dimension of precisions: [TxRxKxAxM]
+    # precision has dims (iou, recall, cls, area range, max dets)
+    assert len(class_names) == precisions.shape[2]
+
+    for idx, name in enumerate(class_names):
+        # area range index 0: all area ranges
+        # max dets index -1: typically 100 per image
+        precision = precisions[:, :, idx, 0, -1]
+        precision = precision[precision > -1]
+        ap = np.mean(precision) if precision.size else float("nan")
+        per_class_AP[name] = float(ap * 100)
+
+    num_cols = min(colums, len(per_class_AP) * len(headers))
+    result_pair = [x for pair in per_class_AP.items() for x in pair]
+    row_pair = itertools.zip_longest(
+        *[result_pair[i::num_cols] for i in range(num_cols)]
+    )
+    table_headers = headers * (num_cols // len(headers))
+    table = tabulate(
+        row_pair,
+        tablefmt="pipe",
+        floatfmt=".3f",
+        headers=table_headers,
+        numalign="left",
+    )
+    return table
 
 
 # pylint: disable=too-many-instance-attributes,too-many-arguments,logging-fstring-interpolation
@@ -103,6 +258,8 @@ class PytorchTrainer:
         self.epoch_dict: Dict = {}
         self.valid_elapsed_time: str = ""
         self.train_elapsed_time: str = ""
+        self.per_class_AP = True
+        self.per_class_AR = True
 
     def setup(
         self,
@@ -119,8 +276,10 @@ class PytorchTrainer:
         self.model_config = model_config[self.framework]
         self.callbacks_config = callbacks_config[self.framework]
         self.metrics_config = metrics_config[self.framework]
+        self.img_size = data_config.dataset.image_size
         self.num_classes = data_config.dataset.num_classes
         self.cls_names = list(data_config.dataset.class_name_to_id.keys())
+        self.class_ids = {y: x for x, y in data_config.dataset.class_name_to_id.items()}
         self.train_params = self.trainer_config.global_train_params
         self.model_artifacts_dir = self.trainer_config.stores.model_artifacts_dir
         self.device = device
@@ -254,7 +413,7 @@ class PytorchTrainer:
 
         train_bar = tqdm(train_loader)
         train_trues: List[torch.Tensor] = []
-        train_probs: List[torch.Tensor] = []
+        # train_probs: List[torch.Tensor] = []
 
         self._invoke_callbacks(EVENTS.TRAIN_LOADER_START.value)
         # Iterate over train batches
@@ -262,7 +421,7 @@ class PytorchTrainer:
             self._invoke_callbacks(EVENTS.TRAIN_BATCH_START.value)
 
             # unpack - note that if BCEWithLogitsLoss, dataset should do view(-1,1) and not here.
-            inputs, targets = batch
+            inputs, targets, _, _ = batch
             inputs = inputs.to(self.device, non_blocking=True)
             targets = targets.to(self.device, non_blocking=True)
 
@@ -277,41 +436,17 @@ class PytorchTrainer:
             self.optimizer.step()
             # self.scaler.update()
 
-            # curr_batch_train_loss = LossAdapter.compute_criterion(
-            #     targets,
-            #     logits,
-            #     criterion_params=self.trainer_config.criterion_params,
-            #     stage="train",
-            # )
-            # curr_batch_train_loss.backward()  # Backward pass
-            # self.optimizer.step()  # Adjust learning weights
-
             # Compute the loss metrics and its gradients
             self.epoch_dict["train"]["batch_loss"] = loss.item()
-            # y_train_prob = get_sigmoid_softmax(self.trainer_config)(logits)
 
             self._invoke_callbacks(EVENTS.TRAIN_BATCH_END.value)
 
             train_trues.extend(targets.cpu())
             # train_probs.extend(y_train_prob.cpu())
 
-        # (
-        #     train_trues_tensor,
-        #     train_probs_tensor,
-        # ) = (
-        #     torch.vstack(tensors=train_trues),
-        #     torch.vstack(tensors=train_probs),
-        # )
-        # self.epoch_dict["train"]["metrics"] = PytorchMetrics.get_classification_metrics(
-        #     self.metrics,
-        #     train_trues_tensor,
-        #     train_probs_tensor,
-        #     "train",
-        # )
-        # losses_output = logits.detach().cpu()
-        loss_str = ", ".join([f"{k}: {v:.1f}" for k, v in logits.items()])
-        print(loss_str)  # loss.cpu().detach().item()
-        # print(loss.detach().cpu().item())
+        if logits is not None:
+            loss_str = ", ".join([f"{k}: {v:.1f}" for k, v in logits.items()])
+            logger.info(loss_str)
 
         self._invoke_callbacks(EVENTS.TRAIN_LOADER_END.value)
         self._invoke_callbacks(EVENTS.TRAIN_EPOCH_END.value)
@@ -338,33 +473,45 @@ class PytorchTrainer:
         valid_bar = tqdm(validation_loader)
         valid_trues: List[torch.Tensor] = []
         valid_logits: List[torch.Tensor] = []
-        # valid_preds: List[torch.Tensor] = []
-        # valid_probs: List[torch.Tensor] = []
+
         images_dt = []
         outputs = []
+
+        inference_time = 0
+        nms_time = 0
+        n_samples = max(len(validation_loader) - 1, 1)
 
         self._invoke_callbacks(EVENTS.VALID_LOADER_START.value)
         std = torch.tensor([0.24703225141799082, 0.24348516474564, 0.26158783926049628])
         mean = torch.tensor(
             [0.4913997551666284, 0.48215855929893703, 0.4465309133731618]
         )
-        unnormalize = Normalize((-mean / std).tolist(), (1.0 / std).tolist())
-        with torch.no_grad():
-            for index, batch in enumerate(valid_bar, start=1):
+        unnormalize = Normalize(
+            (-mean / std).tolist(),
+            (1.0 / std).tolist(),
+            always_apply=True,
+            max_pixel_value=1.0,
+        )
+
+        data_list = []
+        output_data = defaultdict()
+
+        for cur_iter, batch in enumerate(valid_bar, start=1):
+            with torch.no_grad():
                 self._invoke_callbacks(EVENTS.VALID_BATCH_START.value)
 
                 # unpack
-                inputs, targets = batch
+                inputs, targets, info_imgs, ids = batch
 
-                for img in inputs:
-                    height, width = img.shape[:2]
-                    img_info = {"id": index}
-                    img_info["height"] = height
-                    img_info["width"] = width
-                    img = unnormalize(image=img.detach().numpy().transpose((1, 2, 0)))[
-                        "image"
-                    ]
-                    img_info["raw_img"] = img
+                heights, widths = info_imgs
+                for index, image, height, width in zip(ids, inputs, heights, widths):
+                    img_info = {"id": index.item()}
+                    img_info["height"] = height.item()
+                    img_info["width"] = width.item()
+                    img = unnormalize(
+                        image=image.detach().numpy().transpose((1, 2, 0))
+                    )["image"]
+                    img_info["raw_img"] = (img * 255).astype(np.uint8)
                     # img, ratio = preproc(img, (height, width))
                     img_info["ratio"] = 1.0
                     images_dt.append(img_info)
@@ -372,24 +519,46 @@ class PytorchTrainer:
                 inputs = inputs.to(self.device, non_blocking=True)
                 targets = targets.to(self.device, non_blocking=True)
 
+                # skip the last iters since batchsize might be not enough for batch inference
+                is_time_record = cur_iter < len(validation_loader) - 1
+                if is_time_record:
+                    start = time.time()
+
                 self.optimizer.zero_grad()  # reset gradients
                 logits = self.model(inputs)  # Forward pass logits
+
+                if is_time_record:
+                    infer_end = time_synchronized()
+                    inference_time += infer_end - start
 
                 self._invoke_callbacks(EVENTS.VALID_BATCH_END.value)
                 # For OOF score and other computation.
                 valid_trues.extend(targets.cpu())
                 valid_logits.extend(logits.cpu())
-                # print(outputs)
-                # np.savetxt("postprocess.txt", outputs)
+
                 output = postprocess(logits, self.num_classes)
-                outputs.append(output)
+                outputs.extend(output)
 
-        print(f"_run_validation_epoch_outputs{len(outputs)}images_dt{len(images_dt)}")
+                if is_time_record:
+                    nms_end = time_synchronized()
+                    nms_time += nms_end - infer_end
 
-        for output, img_info in zip(outputs, images_dt):
-            result_image = self.visual(output[0], img_info)
-            # print(f"result_image{result_image}")
-            # print(f"output{len(output)}raw_img{img_info['raw_img'].shape}")
+            data_list_elem, image_wise_data = self.convert_to_coco_format(
+                outputs, info_imgs, ids, return_outputs=True
+            )
+            data_list.extend(data_list_elem)
+            output_data.update(image_wise_data)
+
+        # print(f"_run_validation_epoch_outputs{len(outputs)}images_dt{len(images_dt)}")
+
+        # statistics = torch.Tensor([inference_time, nms_time, n_samples])
+        # eval_results = self.evaluate_prediction(data_list, statistics)
+        # print(f"eval_results{eval_results}")
+
+        for img_info, output in zip(images_dt, outputs):
+            result_image = self.visual(output, img_info)
+            # if output is not None:
+            #     print(f"output{output.shape}raw_img{img_info['raw_img'].shape}")
             save_folder = os.path.join(
                 "YOLOX_outputs", time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime())
             )
@@ -400,6 +569,7 @@ class PytorchTrainer:
             logger.info(f"Saving detection result in {save_file_name}")
 
             # print(f"imm{result_image.shape}")
+            # result_image = cv2.cvtColor(result_image, cv2.COLOR_BGR2RGB)
             cv2.imwrite(save_file_name, result_image)
 
         (
@@ -409,8 +579,8 @@ class PytorchTrainer:
             torch.vstack(tensors=valid_trues),
             torch.vstack(tensors=valid_logits),
         )
-        print(f"_run_validation_epoch_valid_logits{valid_logits_tensor.shape}")
-        print(f"_run_validation_epoch_valid_trues{valid_trues_tensor.shape}")
+        # print(f"_run_validation_epoch_valid_logits{valid_logits_tensor.shape}")
+        # print(f"_run_validation_epoch_valid_trues{valid_trues_tensor.shape}")
         # np.savetxt("postprocess.txt", outputs[0])
         # self.epoch_dict["validation"][
         #     "metrics"
@@ -423,18 +593,73 @@ class PytorchTrainer:
 
         self._invoke_callbacks(EVENTS.VALID_LOADER_END.value)
 
-        # self.epoch_dict["validation"].update(
-        #     {
-        #         "valid_trues": valid_trues_tensor,
-        #         "valid_logits": valid_logits_tensor,
-        #         "valid_preds": valid_preds_tensor,
-        #         "valid_probs": valid_probs_tensor,
-        #         "valid_elapsed_time": self.valid_elapsed_time,
-        #     }
-        # )
+
         self._invoke_callbacks(EVENTS.VALID_EPOCH_END.value)
 
-    def visual(self, output, img_info, cls_conf=0.0000035):
+    def convert_to_coco_format(
+        self, outputs, info_imgs, ids, return_outputs: bool = False
+    ):
+        """
+        Convert the outputs of the model to COCO format.
+        Args:
+            outputs: list of tensors, each tensor is the output of the model.
+            info_imgs: list of tensors, each tensor is the info of the image.
+            ids: list of tensors, each tensor is the id of the image.
+            return_outputs: if True, return the outputs of the model.
+        Returns:
+            data_list: list of dict, each dict is the data of one image.
+            image_wise_data: dict, each key is the id of the image,
+                and the value is the data of the image.
+        """
+
+        data_list = []
+        image_wise_data = defaultdict(dict)
+        for output, img_h, img_w, img_id in zip(
+            outputs, info_imgs[0], info_imgs[1], ids
+        ):
+            if output is None:
+                continue
+            # output = output.cpu()
+
+            bboxes = output[:, 0:4]
+
+            # preprocessing: resize
+            scale = min(self.img_size / float(img_h), self.img_size / float(img_w))
+            bboxes /= scale
+            cls = output[:, 6]
+            scores = output[:, 4] * output[:, 5]
+
+            image_wise_data.update(
+                {
+                    int(img_id): {
+                        "bboxes": [box.numpy().tolist() for box in bboxes],
+                        "scores": [score.numpy().item() for score in scores],
+                        "categories": [
+                            self.class_ids[int(cls[ind])]
+                            for ind in range(bboxes.shape[0])
+                        ],
+                    }
+                }
+            )
+
+            bboxes = xyxy2xywh(bboxes)
+
+            for ind in range(bboxes.shape[0]):
+                label = self.class_ids[int(cls[ind])]
+                pred_data = {
+                    "image_id": int(img_id),
+                    "category_id": label,
+                    "bbox": bboxes[ind].numpy().tolist(),
+                    "score": scores[ind].numpy().item(),
+                    "segmentation": [],
+                }  # COCO json format
+                data_list.append(pred_data)
+
+        if return_outputs:
+            return data_list, image_wise_data
+        return data_list
+
+    def visual(self, output, img_info, cls_conf=0.35):
         ratio = img_info["ratio"]
         img = img_info["raw_img"]
         if output is None:
@@ -446,7 +671,7 @@ class PytorchTrainer:
 
         cls = output[:, 6]
         scores = output[:, 4] * output[:, 5]
-
+        print(scores)
         vis_res = vis(img, bboxes, scores, cls, cls_conf, self.cls_names)
         return vis_res
 
@@ -465,7 +690,7 @@ class PytorchTrainer:
     ) -> Dict[str, Any]:
         """Fit the model and returns the history object."""
         self._set_dataloaders(train_dl=train_loader, validation_dl=validation_loader)
-        inputs, _ = next(iter(train_loader))
+        inputs, _, _, _ = next(iter(train_loader))
         self._train_setup(inputs)  # startup
         if self.train_params.debug:
             self._update_epochs("debug")
@@ -509,3 +734,67 @@ class PytorchTrainer:
         # run epoch
         logger.info("\n\nStart fine-tuning:\n")
         self._run_epochs()
+
+    def evaluate_prediction(self, data_dict, statistics):
+        logger.info("Evaluate in main process...")
+
+        annType = ["segm", "bbox", "keypoints"]
+
+        inference_time = statistics[0].item()
+        nms_time = statistics[1].item()
+        n_samples = statistics[2].item()
+
+        a_infer_time = (
+            1000 * inference_time / (n_samples * self.validation_loader.batch_size)
+        )
+        a_nms_time = 1000 * nms_time / (n_samples * self.validation_loader.batch_size)
+
+        time_info = ", ".join(
+            [
+                "Average {} time: {:.2f} ms".format(k, v)
+                for k, v in zip(
+                    ["forward", "NMS", "inference"],
+                    [a_infer_time, a_nms_time, (a_infer_time + a_nms_time)],
+                )
+            ]
+        )
+
+        info = time_info + "\n"
+
+        # Evaluate the Dt (detection) json comparing with the ground truth
+        if len(data_dict) > 0:
+            cocoGt = COCO("data/coco128/annotations/instances_val2017.json")
+            # TODO: since pycocotools can't process dict in py36, write data to json file.
+            # if self.testdev:
+            #     json.dump(data_dict, open("./yolox_testdev_2017.json", "w"))
+            #     cocoDt = cocoGt.loadRes("./yolox_testdev_2017.json")
+            # else:
+            _, tmp = tempfile.mkstemp()
+            json.dump(data_dict, open(tmp, "w"))
+            cocoDt = cocoGt.loadRes(tmp)
+            # print(cocoDt)
+            try:
+                from pycocotools.cocoeval import COCOeval
+            except ImportError:
+                from pycocotools.cocoeval import COCOeval
+
+                logger.warning("Use standard COCOeval.")
+
+            cocoEval = COCOeval(cocoGt, cocoDt, annType[1])
+            cocoEval.evaluate()
+            cocoEval.accumulate()
+            redirect_string = io.StringIO()
+            with contextlib.redirect_stdout(redirect_string):
+                cocoEval.summarize()
+            info += redirect_string.getvalue()
+            cat_ids = list(cocoGt.cats.keys())
+            cat_names = [cocoGt.cats[catId]["name"] for catId in sorted(cat_ids)]
+            if self.per_class_AP:
+                AP_table = per_class_AP_table(cocoEval, class_names=cat_names)
+                info += "per class AP:\n" + AP_table + "\n"
+            if self.per_class_AR:
+                AR_table = per_class_AR_table(cocoEval, class_names=cat_names)
+                info += "per class AR:\n" + AR_table + "\n"
+            return cocoEval.stats[0], cocoEval.stats[1], info
+        else:
+            return 0, 0, info

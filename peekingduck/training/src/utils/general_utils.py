@@ -23,6 +23,7 @@ import logging
 import os
 import random
 import sys
+import time
 import uuid
 import zipfile
 from pathlib import Path, PurePath
@@ -536,3 +537,10 @@ def convert_to_absolute_values(size, box):
     x2 = x1 + w_box
     y2 = y1 + h_box
     return (round(x1), round(y1), round(x2), round(y2))
+
+
+def time_synchronized():
+    """pytorch-accurate time"""
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
+    return time.time()

@@ -13,10 +13,11 @@
 # limitations under the License.
 
 """dataset"""
-
+import copy
 import os
 from typing import Any, Dict, List, Optional, Tuple, Union
 import logging
+import re
 
 import numpy as np
 from omegaconf import DictConfig
@@ -25,8 +26,10 @@ import albumentations as A
 import cv2
 from PIL import Image, ImageOps
 import pandas as pd
+from pycocotools.coco import COCO
 from configs import LOGGER_NAME
 
+from src.model.yoloxv1.data_augment import TrainTransform, ValTransform
 from src.utils.general_utils import exif_size, segments2boxes
 from src.config import TORCH_AVAILABLE, TF_AVAILABLE, IMG_FORMATS
 
@@ -256,6 +259,25 @@ class TFImageClassificationDataset(
             np.random.shuffle(self.indexes)
 
 
+def remove_useless_info(coco):
+    """
+    Remove useless info in coco dataset. COCO object is modified inplace.
+    This function is mainly used for saving memory (save about 30% mem).
+    """
+    if isinstance(coco, COCO):
+        dataset = coco.dataset
+        dataset.pop("info", None)
+        dataset.pop("licenses", None)
+        for img in dataset["images"]:
+            img.pop("license", None)
+            img.pop("coco_url", None)
+            img.pop("date_captured", None)
+            img.pop("flickr_url", None)
+        if "annotations" in coco.dataset:
+            for anno in coco.dataset["annotations"]:
+                anno.pop("segmentation", None)
+
+
 class PTObjectDetectionDataset(Dataset):
     """Template for Object Detection Dataset."""
 
@@ -286,7 +308,17 @@ class PTObjectDetectionDataset(Dataset):
         return len(self.dataframe.index)
 
     def __getitem__(self, index: int) -> Union[Tuple, Any]:
-        """Generate one batch of data"""
+        """Generate one batch of data
+
+        Args:
+            index (int): index of the image to return.
+
+        Returns:
+            (Dict):
+                Outputs dictionary with the keys `image`, `labels`,
+                `img_info`, `index`.
+        """
+
         assert self.stage in [
             "train",
             "validation",
@@ -295,31 +327,38 @@ class PTObjectDetectionDataset(Dataset):
         ], f"Invalid stage {self.stage}."
 
         image_path: str = self.image_path[index]
-        image: Tensor = cv2.imread(image_path)
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image: np.ndarray[int, np.dtype[np.generic]] = cv2.imread(image_path)
+        # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        height, width, _ = image.shape
+        img_info = (height, width)
 
         # Get target for all modes except for test dataset.
         # If test, replace target with dummy ones as placeholder.
         if self.stage != "test" and self.label_path is not None:
             label_path = self.label_path[index]
             labels = self.get_labels(label_path, self.cfg.dataset.num_classes)
-            training_data = self.apply_image_transforms(image, labels)
+            image, labels = self.apply_image_transforms(image, labels)
         else:  # Test dataset
             image = self.apply_image_transforms(image)
-            training_data = (
-                image,
-                np.zeros((self.max_labels, 5), dtype=np.float32),
-            )
+            labels = np.zeros((self.max_labels, 5), dtype=np.float32)
 
-        return training_data
+        # get file
+        regex = re.compile(r"\d+")
+        ids = int(regex.findall(image_path)[-1])
+        return image, labels, img_info, ids
 
     def apply_image_transforms(self, image: torch.Tensor, labels: Optional[Any] = None):
-        """Apply transforms to the image."""
+        """Apply transforms to the image.
+        Note:
+            This is useful for tasks such as segmentation object detection where
+            targets are in the form of bounding boxes, segmentation masks etc.
+        """
+
         if self.transforms and isinstance(self.transforms, A.Compose):
             if labels is not None:
                 bboxes = [x[1:] for x in labels]
                 category_ids = [x[0] for x in labels]
-                # print(f"bboxes{bboxes}category_ids{category_ids}")
+
                 transformed = self.transforms(
                     image=image, bboxes=bboxes, category_ids=category_ids
                 )
@@ -359,13 +398,15 @@ class PTObjectDetectionDataset(Dataset):
         """verify images"""
         msg = ""
         # verify images
-        im = Image.open(im_file)
-        im.verify()  # PIL verify
-        shape = exif_size(im)  # image size
+        image = Image.open(im_file)
+        image.verify()  # PIL verify
+        shape = exif_size(image)  # image size
         shape = (shape[1], shape[0])  # hw
         assert (shape[0] > 9) & (shape[1] > 9), f"image size {shape} <10 pixels"
-        assert im.format.lower() in IMG_FORMATS, f"invalid image format {im.format}"
-        if im.format.lower() in ("jpg", "jpeg"):
+        assert (
+            image.format.lower() in IMG_FORMATS
+        ), f"invalid image format {image.format}"
+        if image.format.lower() in ("jpg", "jpeg"):
             with open(im_file, "rb") as f:
                 f.seek(-2, 2)
                 if f.read() != b"\xff\xd9":  # corrupt JPEG
@@ -474,3 +515,156 @@ class PTObjectDetectionDataset(Dataset):
         """get labels"""
         targets_t = self.verify_label(label_path, num_cls)
         return targets_t
+
+
+class COCODataset(Dataset):
+    """
+    COCO dataset class.
+    """
+
+    def __init__(
+        self,
+        cfg: DictConfig,
+        # dataframe: pd.DataFrame,
+        stage: str = "train",
+        transforms=None,
+        **kwargs: Dict[str, Any],
+    ):
+        """
+        COCO dataset initialization. Annotation data are read into memory by COCO API.
+        Args:
+            data_dir (str): dataset root directory
+            json_file (str): COCO json file name
+            name (str): COCO data name (e.g. 'train2017' or 'val2017')
+            img_size (int): target image size after pre-processing
+            preproc: data augmentation strategy
+        """
+        super().__init__(**kwargs)
+        self.cfg: DictConfig = cfg
+        self.stage: str = stage
+        self.transforms = transforms
+        if self.transforms is None:
+            self.transforms = TrainTransform(
+                max_labels=120, flip_prob=0.5, hsv_prob=1.0
+            )
+        self.max_labels: int = int(self.cfg.dataset.max_labels)
+
+        self.data_dir = self.cfg.dataset.train_dir
+        self.json_file = self.cfg.dataset.json_file
+
+        self.coco = COCO(os.path.join(self.data_dir, "annotations", self.json_file))
+        remove_useless_info(self.coco)
+        self.ids = self.coco.getImgIds()
+        self.num_imgs = len(self.ids)
+        self.class_ids = sorted(self.coco.getCatIds())
+        self.cats = self.coco.loadCats(self.coco.getCatIds())
+        self._classes = tuple([c["name"] for c in self.cats])
+        self.name = self.cfg.dataset.name
+        self.img_size = (self.cfg.dataset.image_size, self.cfg.dataset.image_size)
+        self.annotations = self._load_coco_annotations()
+
+        path_filename = [
+            os.path.join(self.cfg.dataset.name, anno[3]) for anno in self.annotations
+        ]
+
+    def __len__(self):
+        return self.num_imgs
+
+    def _load_coco_annotations(self):
+        return [self.load_anno_from_ids(_ids) for _ids in self.ids]
+
+    def load_anno_from_ids(self, id_):
+        im_ann = self.coco.loadImgs(id_)[0]
+        width = im_ann["width"]
+        height = im_ann["height"]
+        anno_ids = self.coco.getAnnIds(imgIds=[int(id_)], iscrowd=False)
+        annotations = self.coco.loadAnns(anno_ids)
+        objs = []
+        for obj in annotations:
+            x1 = np.max((0, obj["bbox"][0]))
+            y1 = np.max((0, obj["bbox"][1]))
+            x2 = np.min((width, x1 + np.max((0, obj["bbox"][2]))))
+            y2 = np.min((height, y1 + np.max((0, obj["bbox"][3]))))
+            if obj["area"] > 0 and x2 >= x1 and y2 >= y1:
+                obj["clean_bbox"] = [x1, y1, x2, y2]
+                objs.append(obj)
+
+        num_objs = len(objs)
+
+        res = np.zeros((num_objs, 5))
+        for ix, obj in enumerate(objs):
+            cls = self.class_ids.index(obj["category_id"])
+            res[ix, 0:4] = obj["clean_bbox"]
+            res[ix, 4] = cls
+
+        r = min(self.img_size[0] / height, self.img_size[1] / width)
+        res[:, :4] *= r
+
+        img_info = (height, width)
+        resized_info = (int(height * r), int(width * r))
+
+        file_name = (
+            im_ann["file_name"]
+            if "file_name" in im_ann
+            else "{:012}".format(id_) + ".jpg"
+        )
+
+        return (res, img_info, resized_info, file_name)
+
+    def load_anno(self, index):
+        return self.annotations[index][0]
+
+    def load_resized_img(self, index):
+        img = self.load_image(index)
+        r = min(self.img_size[0] / img.shape[0], self.img_size[1] / img.shape[1])
+        resized_img = cv2.resize(
+            img,
+            (int(img.shape[1] * r), int(img.shape[0] * r)),
+            interpolation=cv2.INTER_LINEAR,
+        ).astype(np.uint8)
+        return resized_img
+
+    def load_image(self, index):
+        file_name = self.annotations[index][3]
+
+        img_file = os.path.join(self.data_dir, self.name, file_name)
+
+        img = cv2.imread(img_file)
+        assert img is not None, f"file named {img_file} not found"
+
+        return img
+
+    def read_img(self, index):
+        return self.load_resized_img(index)
+
+    def pull_item(self, index):
+        id_ = self.ids[index]
+        label, origin_image_size, _, _ = self.annotations[index]
+        img = self.read_img(index)
+
+        return img, copy.deepcopy(label), origin_image_size, np.array([id_])
+
+    def __getitem__(self, index):
+        """
+        One image / label pair for the given index is picked up and pre-processed.
+
+        Args:
+            index (int): data index
+
+        Returns:
+            img (numpy.ndarray): pre-processed image
+            padded_labels (torch.Tensor): pre-processed label data.
+                The shape is :math:`[max_labels, 5]`.
+                each label consists of [class, xc, yc, w, h]:
+                    class (float): class index.
+                    xc, yc (float) : center of bbox whose values range from 0 to 1.
+                    w, h (float) : size of bbox whose values range from 0 to 1.
+            info_img : tuple of h, w.
+                h, w (int): original shape of the image
+            img_id (int): same as the input index. Used for evaluation.
+        """
+        img, target, img_info, img_id = self.pull_item(index)
+
+        if self.transforms is not None:
+            img, target = self.transforms(img, target, self.img_size)
+        return img, target, img_info, img_id
