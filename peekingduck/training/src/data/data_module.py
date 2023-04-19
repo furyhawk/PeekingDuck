@@ -268,38 +268,37 @@ class ObjectDetectionDataModule:
             download_to(url, blob_file, root_dir)
             extract_file(root_dir, blob_file)
 
-        train_images: Union[List[str], List[Path]] = return_list_of_files(
-            train_dir, extensions=[".jpg", ".png", ".jpeg"], return_string=False
-        )
-        test_images: Union[List[str], List[Path]] = return_list_of_files(
-            test_dir, extensions=[".jpg", ".png", ".jpeg"], return_string=False
-        )
-        logger.info(f"Total number of images: {len(train_images)}")
-        logger.info(f"Total number of test images: {len(test_images)}")
-
         if Path(train_csv).exists():
             # this step is assumed to be done by user where
             # image_path is inside the csv.
-            df: pd.DataFrame = pd.read_csv(train_csv)
+            dataframe: pd.DataFrame = pd.read_csv(train_csv)
         else:
             # Only invoke this if images are store in the following format
             # train_dir
             #   - class1 ...
-            df = create_dataframe_with_image_info(
+            train_images: Union[List[str], List[Path]] = return_list_of_files(
+                train_dir, extensions=[".jpg", ".png", ".jpeg"], return_string=False
+            )
+            test_images: Union[List[str], List[Path]] = return_list_of_files(
+                test_dir, extensions=[".jpg", ".png", ".jpeg"], return_string=False
+            )
+            logger.info(f"Total number of images: {len(train_images)}")
+            logger.info(f"Total number of test images: {len(test_images)}")
+            dataframe = create_dataframe_with_image_info(
                 train_images,
                 class_name_to_id,
                 save_path=train_csv,
             )
-        logger.info(df.head())
+        logger.info(dataframe.head())
 
-        self.train_df: pd.DataFrame = df
+        self.train_df: pd.DataFrame = dataframe
         self.test_df: pd.DataFrame
-        self.valid_df: pd.DataFrame
+        self.validation_df: pd.DataFrame
 
         self.train_df, self.test_df = self._cross_validation_split(
-            self.cfg.resample.resample_strategy, df, stratify_by=stratify_by
+            self.cfg.resample.resample_strategy, dataframe, stratify_by=stratify_by
         )
-        self.train_df, self.valid_df = self._cross_validation_split(
+        self.train_df, self.validation_df = self._cross_validation_split(
             self.cfg.resample.resample_strategy, self.train_df, stratify_by=stratify_by
         )
 
@@ -320,6 +319,7 @@ class ObjectDetectionDataModule:
                 )
 
         logger.info(self.train_df.info())
+        logger.info(self.validation_df.info())
 
     def setup(self, stage: str) -> None:
         """Step 3 after prepare()"""
@@ -340,7 +340,7 @@ class ObjectDetectionDataModule:
                     AbstractDataSet, pd.DataFrame
                 ] = PTObjectDetectionDataset(
                     self.cfg,
-                    dataframe=self.valid_df,
+                    dataframe=self.validation_df,
                     stage="validation",
                     transforms=self.validation_transforms,
                 )

@@ -50,6 +50,7 @@ from src.model.yoloxv1.visualize import vis
 from src.metrics.pytorch_metrics import PytorchMetrics
 from src.utils.general_utils import free_gpu_memory, time_synchronized  # , init_logger
 from src.utils.pt_model_utils import set_trainable_layers, unfreeze_all_params
+from src.utils.coco import COCO_CLASSES
 
 logger: logging.Logger = logging.getLogger(LOGGER_NAME)  # pylint: disable=invalid-name
 
@@ -70,90 +71,6 @@ def get_sigmoid_softmax(
         loss_func = getattr(torch.nn, "Softmax")(dim=1)
 
     return loss_func
-
-
-COCO_CLASSES = (
-    "person",
-    "bicycle",
-    "car",
-    "motorcycle",
-    "airplane",
-    "bus",
-    "train",
-    "truck",
-    "boat",
-    "traffic light",
-    "fire hydrant",
-    "stop sign",
-    "parking meter",
-    "bench",
-    "bird",
-    "cat",
-    "dog",
-    "horse",
-    "sheep",
-    "cow",
-    "elephant",
-    "bear",
-    "zebra",
-    "giraffe",
-    "backpack",
-    "umbrella",
-    "handbag",
-    "tie",
-    "suitcase",
-    "frisbee",
-    "skis",
-    "snowboard",
-    "sports ball",
-    "kite",
-    "baseball bat",
-    "baseball glove",
-    "skateboard",
-    "surfboard",
-    "tennis racket",
-    "bottle",
-    "wine glass",
-    "cup",
-    "fork",
-    "knife",
-    "spoon",
-    "bowl",
-    "banana",
-    "apple",
-    "sandwich",
-    "orange",
-    "broccoli",
-    "carrot",
-    "hot dog",
-    "pizza",
-    "donut",
-    "cake",
-    "chair",
-    "couch",
-    "potted plant",
-    "bed",
-    "dining table",
-    "toilet",
-    "tv",
-    "laptop",
-    "mouse",
-    "remote",
-    "keyboard",
-    "cell phone",
-    "microwave",
-    "oven",
-    "toaster",
-    "sink",
-    "refrigerator",
-    "book",
-    "clock",
-    "vase",
-    "scissors",
-    "teddy bear",
-    "hair drier",
-    "toothbrush",
-)
 
 
 def per_class_AR_table(
@@ -543,22 +460,19 @@ class PytorchTrainer:
                     nms_end = time_synchronized()
                     nms_time += nms_end - infer_end
 
-            data_list_elem, image_wise_data = self.convert_to_coco_format(
+            data_list_elem, _ = self.convert_to_coco_format(
                 outputs, info_imgs, ids, return_outputs=True
             )
             data_list.extend(data_list_elem)
-            output_data.update(image_wise_data)
+            # output_data.update(image_wise_data)
 
-        # print(f"_run_validation_epoch_outputs{len(outputs)}images_dt{len(images_dt)}")
-
-        # statistics = torch.Tensor([inference_time, nms_time, n_samples])
-        # eval_results = self.evaluate_prediction(data_list, statistics)
-        # print(f"eval_results{eval_results}")
+        statistics = torch.Tensor([inference_time, nms_time, n_samples])
+        eval_results = self.evaluate_prediction(data_list, statistics)
+        logger.info(f"eval_results{eval_results}")
 
         for img_info, output in zip(images_dt, outputs):
             result_image = self.visual(output, img_info)
             # if output is not None:
-            #     print(f"output{output.shape}raw_img{img_info['raw_img'].shape}")
             save_folder = os.path.join(
                 "YOLOX_outputs", time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime())
             )
@@ -566,9 +480,8 @@ class PytorchTrainer:
             save_file_name = os.path.join(
                 save_folder, os.path.basename(".".join([str(img_info["id"]), "png"]))
             )
-            logger.info(f"Saving detection result in {save_file_name}")
+            # logger.info(f"Saving detection result in {save_file_name}")
 
-            # print(f"imm{result_image.shape}")
             # result_image = cv2.cvtColor(result_image, cv2.COLOR_BGR2RGB)
             cv2.imwrite(save_file_name, result_image)
 
@@ -593,7 +506,6 @@ class PytorchTrainer:
 
         self._invoke_callbacks(EVENTS.VALID_LOADER_END.value)
 
-
         self._invoke_callbacks(EVENTS.VALID_EPOCH_END.value)
 
     def convert_to_coco_format(
@@ -613,6 +525,7 @@ class PytorchTrainer:
         """
 
         data_list = []
+        count = 0
         image_wise_data = defaultdict(dict)
         for output, img_h, img_w, img_id in zip(
             outputs, info_imgs[0], info_imgs[1], ids
@@ -620,11 +533,11 @@ class PytorchTrainer:
             if output is None:
                 continue
             # output = output.cpu()
-
             bboxes = output[:, 0:4]
 
             # preprocessing: resize
             scale = min(self.img_size / float(img_h), self.img_size / float(img_w))
+
             bboxes /= scale
             cls = output[:, 6]
             scores = output[:, 4] * output[:, 5]
@@ -634,10 +547,7 @@ class PytorchTrainer:
                     int(img_id): {
                         "bboxes": [box.numpy().tolist() for box in bboxes],
                         "scores": [score.numpy().item() for score in scores],
-                        "categories": [
-                            self.class_ids[int(cls[ind])]
-                            for ind in range(bboxes.shape[0])
-                        ],
+                        "categories": [int(cls[ind]) for ind in range(bboxes.shape[0])],
                     }
                 }
             )
@@ -645,15 +555,17 @@ class PytorchTrainer:
             bboxes = xyxy2xywh(bboxes)
 
             for ind in range(bboxes.shape[0]):
-                label = self.class_ids[int(cls[ind])]
+                label = int(cls[ind])
                 pred_data = {
-                    "image_id": int(img_id),
+                    "id": int(count),
+                    "image_id": int(img_id.item()),
                     "category_id": label,
                     "bbox": bboxes[ind].numpy().tolist(),
-                    "score": scores[ind].numpy().item(),
                     "segmentation": [],
+                    "score": scores[ind].numpy().item(),
                 }  # COCO json format
                 data_list.append(pred_data)
+                count += 1
 
         if return_outputs:
             return data_list, image_wise_data
@@ -671,7 +583,7 @@ class PytorchTrainer:
 
         cls = output[:, 6]
         scores = output[:, 4] * output[:, 5]
-        print(scores)
+        # print(scores)
         vis_res = vis(img, bboxes, scores, cls, cls_conf, self.cls_names)
         return vis_res
 
@@ -763,16 +675,16 @@ class PytorchTrainer:
 
         # Evaluate the Dt (detection) json comparing with the ground truth
         if len(data_dict) > 0:
-            cocoGt = COCO("data/coco128/annotations/instances_val2017.json")
+            with open("train_json.json", "w", encoding="utf-8") as f:
+                json.dump(self.validation_loader.dataset.coco, f, indent=4)
+            cocoGt = COCO(
+                "train_json.json"
+            )  # "data/coco128/annotations/instances_val2017.json"
             # TODO: since pycocotools can't process dict in py36, write data to json file.
-            # if self.testdev:
-            #     json.dump(data_dict, open("./yolox_testdev_2017.json", "w"))
-            #     cocoDt = cocoGt.loadRes("./yolox_testdev_2017.json")
-            # else:
             _, tmp = tempfile.mkstemp()
             json.dump(data_dict, open(tmp, "w"))
             cocoDt = cocoGt.loadRes(tmp)
-            # print(cocoDt)
+
             try:
                 from pycocotools.cocoeval import COCOeval
             except ImportError:

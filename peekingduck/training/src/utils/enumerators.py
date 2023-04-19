@@ -1,3 +1,17 @@
+# Copyright 2023 AI Singapore
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from enum import Enum
 
 
@@ -9,6 +23,7 @@ class MethodAveragePrecision(Enum):
         Developed by: Rafael Padilla
         Last modification: Apr 28 2018
     """
+
     EVERY_POINT_INTERPOLATION = 1
     ELEVEN_POINT_INTERPOLATION = 2
 
@@ -21,6 +36,7 @@ class CoordinatesType(Enum):
         Developed by: Rafael Padilla
         Last modification: Apr 28 2018
     """
+
     RELATIVE = 1
     ABSOLUTE = 2
 
@@ -29,6 +45,7 @@ class BBType(Enum):
     """
     Class representing if the bounding box is groundtruth or not.
     """
+
     GROUND_TRUTH = 1
     DETECTED = 2
 
@@ -37,6 +54,7 @@ class BBFormat(Enum):
     """
     Class representing the format of a bounding box.
     """
+
     XYWH = 1
     XYX2Y2 = 2
     PASCAL_XML = 3

@@ -27,11 +27,13 @@ import cv2
 from PIL import Image, ImageOps
 import pandas as pd
 from pycocotools.coco import COCO
+
 from configs import LOGGER_NAME
 
 from src.model.yoloxv1.data_augment import TrainTransform, ValTransform
 from src.utils.general_utils import exif_size, segments2boxes
 from src.config import TORCH_AVAILABLE, TF_AVAILABLE, IMG_FORMATS
+from src.utils.coco import create_coco_format_json
 
 logger = logging.getLogger(LOGGER_NAME)  # pylint: disable=invalid-name
 
@@ -302,6 +304,11 @@ class PTObjectDetectionDataset(Dataset):
         self.label_path = (
             dataframe[cfg.dataset.target_col_id].values if stage != "test" else None
         )
+        self.coco = (
+            create_coco_format_json(self.image_path, self.label_path)
+            if stage != "test"
+            else None
+        )
 
     def __len__(self) -> int:
         """Return the length of the dataset."""
@@ -342,7 +349,7 @@ class PTObjectDetectionDataset(Dataset):
             image = self.apply_image_transforms(image)
             labels = np.zeros((self.max_labels, 5), dtype=np.float32)
 
-        # get file
+        # get id
         regex = re.compile(r"\d+")
         ids = int(regex.findall(image_path)[-1])
         return image, labels, img_info, ids
