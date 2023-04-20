@@ -187,3 +187,25 @@ def xyxy2cxcywh(bboxes):
     bboxes[:, 0] = bboxes[:, 0] + bboxes[:, 2] * 0.5
     bboxes[:, 1] = bboxes[:, 1] + bboxes[:, 3] * 0.5
     return bboxes
+
+
+def xywhn2xyxy(x, w=416, h=416, padw=0, padh=0):
+    """
+    Convert normalized bounding box coordinates to pixel coordinates.
+
+    Args:
+        x (np.ndarray) or (torch.Tensor): The bounding box coordinates.
+        w (int): Width of the image. Defaults to 640
+        h (int): Height of the image. Defaults to 640
+        padw (int): Padding width. Defaults to 0
+        padh (int): Padding height. Defaults to 0
+    Returns:
+        y (np.ndarray) or (torch.Tensor): The coordinates of the bounding box in the format [x1, y1, x2, y2] where
+            x1,y1 is the top-left corner, x2,y2 is the bottom-right corner of the bounding box.
+    """
+    y = x.clone() if isinstance(x, torch.Tensor) else np.copy(x)
+    y[..., 0] = w * (x[..., 0] - x[..., 2] / 2) + padw  # top left x
+    y[..., 1] = h * (x[..., 1] - x[..., 3] / 2) + padh  # top left y
+    y[..., 2] = w * (x[..., 0] + x[..., 2] / 2) + padw  # bottom right x
+    y[..., 3] = h * (x[..., 1] + x[..., 3] / 2) + padh  # bottom right y
+    return y

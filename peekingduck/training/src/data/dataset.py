@@ -291,7 +291,20 @@ class PTObjectDetectionDataset(Dataset):
         transforms: TransformTypes = None,
         **kwargs: Dict[str, Any],
     ) -> None:
-        """"""
+        """
+
+        Args:
+            cfg (DictConfig):
+                Configuration dictionary.
+            dataframe (pd.DataFrame):
+                Dataframe with the image paths and labels.
+            stage (str):
+                Dataset stage.
+            transforms (TransformTypes):
+                Transforms to apply to the image.
+            **kwargs (Dict[str, Any]):
+                Additional keyword arguments.
+        """
 
         super().__init__(**kwargs)
         self.cfg: DictConfig = cfg
@@ -402,7 +415,16 @@ class PTObjectDetectionDataset(Dataset):
         return torch.tensor(target, dtype=dtype)
 
     def verify_image(self, im_file: str) -> str:
-        """verify images"""
+        """verify images
+
+        Args:
+            im_file (str):
+                Image file path.
+
+        Returns:
+            (str):
+                Message.
+        """
         msg = ""
         # verify images
         image = Image.open(im_file)
@@ -504,22 +526,27 @@ class PTObjectDetectionDataset(Dataset):
                                 f"WARNING ⚠️ {lb_file}: {nl - len(i)} duplicate labels removed"
                             )
                     else:
-                        ne = 1  # label empty
+                        # label empty
                         label = np.zeros((0, 5), dtype=np.float32)
 
             else:
-                nm = 1  # label missing
+                # label missing
                 label = np.zeros((0, 5), dtype=np.float32)
 
             label = label[:, :5]
             return label
         except Exception as e:
-            nc = 1
             logger.info(f"WARNING ⚠️ {lb_file}: ignoring corrupt image/label: {e}")
             # return np.zeros((0, 5), dtype=np.float32)
 
     def get_labels(self, label_path: str, num_cls: int):
-        """get labels"""
+        """get labels from label_path
+        Args:
+            label_path (str): label file path
+            num_cls (int): number of classes
+        Returns:
+            targets_t (Tensor): label tensor
+        """
         targets_t = self.verify_label(label_path, num_cls)
         return targets_t
 

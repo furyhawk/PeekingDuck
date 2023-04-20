@@ -411,7 +411,7 @@ class PytorchTrainer:
         )
 
         data_list = []
-        output_data = defaultdict()
+        # output_data = defaultdict()
 
         for cur_iter, batch in enumerate(valid_bar, start=1):
             with torch.no_grad():
@@ -452,7 +452,9 @@ class PytorchTrainer:
                 # For OOF score and other computation.
                 valid_trues.extend(targets.cpu())
                 valid_logits.extend(logits.cpu())
-
+                # print(logits.shape)
+                # print(logits[0][0])
+                # np.savetxt("logit", logits[0])
                 output = postprocess(logits, self.num_classes)
                 outputs.extend(output)
 
@@ -552,7 +554,7 @@ class PytorchTrainer:
                 }
             )
 
-            bboxes = xyxy2xywh(bboxes)
+            # bboxes = xyxy2xywh(bboxes)
 
             for ind in range(bboxes.shape[0]):
                 label = int(cls[ind])

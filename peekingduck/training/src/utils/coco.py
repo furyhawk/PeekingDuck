@@ -23,7 +23,8 @@ import torch
 
 from configs import LOGGER_NAME
 from src.utils.general_utils import segments2boxes
-from src.model.yoloxv1.boxes import xyxy2xywh, xyxy2cxcywh
+
+# from src.model.yoloxv1.boxes import xyxy2xywh, xyxy2cxcywh
 
 logger = logging.getLogger(LOGGER_NAME)  # pylint: disable=invalid-name
 
@@ -134,8 +135,32 @@ def xywhn2xyxy(x, w=416, h=416, padw=0, padh=0):
     return y
 
 
+def xyxy2xywh(x):
+    """
+    Convert bounding box coordinates from (x1, y1, x2, y2) format to (x, y, width, height) format.
+
+    Args:
+        x (np.ndarray) or (torch.Tensor): The input bounding box coordinates in (x1, y1, x2, y2) format.
+    Returns:
+       y (np.ndarray) or (torch.Tensor): The bounding box coordinates in (x, y, width, height) format.
+    """
+    y = x.clone() if isinstance(x, torch.Tensor) else np.copy(x)
+    y[..., 0] = (x[..., 0] + x[..., 2]) / 2  # x center
+    y[..., 1] = (x[..., 1] + x[..., 3]) / 2  # y center
+    y[..., 2] = x[..., 2] - x[..., 0]  # width
+    y[..., 3] = x[..., 3] - x[..., 1]  # height
+    return y
+
+
 def verify_label(lb_file: str, num_cls: int):
-    """verify labels"""
+    """verify labels.
+
+    Args:
+        lb_file (str): The path to the label file.
+        num_cls (int): The number of classes.
+    Returns:
+        label (np.ndarray): The label.
+    """
     try:
         # verify labels
         if os.path.isfile(lb_file):
@@ -277,6 +302,7 @@ def create_coco_format_json(images_path, targets_path, classes=COCO_CLASSES):
             cls = targets[:, 0]
 
             bboxes = xywhn2xyxy(bboxes, w=width, h=height)
+            bboxes = xyxy2xywh(bboxes)
 
             for ind in range(bboxes.shape[0]):
                 label = int(cls[ind])
@@ -287,7 +313,7 @@ def create_coco_format_json(images_path, targets_path, classes=COCO_CLASSES):
                     "bbox": bboxes[ind].tolist(),
                     "segmentation": [],
                     "iscrowd": 0,
-                    "area": 0,
+                    "area": width * height,
                 }  # COCO json format
                 annotations.append(gt_data)
                 count += 1
